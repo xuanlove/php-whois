@@ -320,13 +320,21 @@
                 performWhoisLookup(domain);
             }
 
-            // 模拟 PHP 的 FILTER_VALIDATE_IP
+            // 判断是否为合法 IP 地址（IPv4 / IPv6）
             function filter_var_is_ip(value) {
+                // IPv4：四段 0-255
                 if (/^\d{1,3}(\.\d{1,3}){3}$/.test(value)) {
                     return value.split('.').every(n => +n >= 0 && +n <= 255);
                 }
-                // IPv6 简单判断
-                return /^[0-9a-fA-F:]+$/.test(value) && value.includes(':');
+                // IPv6：必须至少包含一个 "::" 或 8 组十六进制
+                if (!/^[0-9a-fA-F:.]+$/.test(value)) return false;
+                if (!value.includes(':')) return false;
+                // 简化判定：含 "::" 视为合法压缩格式；否则需 7 个冒号分隔 8 组
+                if (value.includes('::')) {
+                    // 不允许多于一个 "::"
+                    return value.indexOf('::') === value.lastIndexOf('::');
+                }
+                return (value.match(/:/g) || []).length === 7 && /^[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}$/.test(value);
             }
 
             // 判断域名后缀是否在 whois.json 中已知
@@ -390,10 +398,12 @@
                 const html = entries.map(function ([tld, server]) {
                     const serverText = server || i18next.t('notAvailable');
                     const serverClass = server ? 'text-gray-600' : 'text-gray-400 italic';
+                    const safeTld = escapeHtml(tld);
+                    const safeServer = escapeHtml(serverText);
                     return `
-                        <div class="tld-item flex justify-between items-center bg-gray-50 hover:bg-indigo-50 rounded-md px-3 py-2 cursor-pointer" data-tld="${tld}">
-                            <span class="text-gray-800 font-medium">.${tld}</span>
-                            <span class="text-xs ${serverClass} break-all ml-2 text-right">${serverText}</span>
+                        <div class="tld-item flex justify-between items-center bg-gray-50 hover:bg-indigo-50 rounded-md px-3 py-2 cursor-pointer" data-tld="${safeTld}">
+                            <span class="text-gray-800 font-medium">.${safeTld}</span>
+                            <span class="text-xs ${serverClass} break-all ml-2 text-right">${safeServer}</span>
                         </div>
                     `;
                 }).join('');
@@ -758,6 +768,12 @@
                             link.click();
 
                             // 截图完成后显示截图按钮
+                            $saveScreenshotBtn.show();
+                        };
+                        // 图片加载失败时也要恢复按钮并提示
+                        img.onerror = function () {
+                            console.error('截图图片加载失败');
+                            showToast('screenshotFailed');
                             $saveScreenshotBtn.show();
                         };
                         img.src = dataUrl;

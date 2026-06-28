@@ -73,12 +73,13 @@ function setCachedResult($domain, $data) {
 
 // 辅助函数：根据域名获取 WHOIS 服务器地址
 function getWhoisServer($domain, $whoisServers) {
+    // 优先判断 IP 地址（IPv4 含 4 段点号，会被误当作域名后缀匹配）
+    if (filter_var($domain, FILTER_VALIDATE_IP)) {
+        return 'whois.apnic.net';
+    }
+
     $parts = explode('.', $domain);
     if (count($parts) < 2) {
-        // 可能是 IP 地址
-        if (filter_var($domain, FILTER_VALIDATE_IP)) {
-            return 'whois.apnic.net';
-        }
         return '';
     }
 
