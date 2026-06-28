@@ -5,9 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="title">WHOIS 查询</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4f46e5">
     <link rel="stylesheet" href="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/tailwindcss/2.2.19/tailwind.min.css">
     <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/dom-to-image/2.6.0/dom-to-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/modern-screenshot@4.7.0/dist/index.min.js"></script>
     <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/clipboard.js/2.0.10/clipboard.min.js"></script>
     <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/i18next/21.6.12/i18next.min.js"></script>
     <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery-i18next/1.2.1/jquery-i18next.min.js"></script>
@@ -207,7 +209,15 @@
         </div>
 
         <div id="history" class="history-card bg-white shadow-md ml-0 sm:ml-4 hidden sm:flex flex-col">
-            <h2 class="text-lg font-semibold p-4 text-gray-800" data-i18n="recentSearches">最近查询</h2>
+            <div class="flex justify-between items-center p-4 pb-2">
+                <h2 class="text-lg font-semibold text-gray-800" data-i18n="recentSearches">最近查询</h2>
+                <button type="button" id="clearHistoryBtn" class="text-xs text-red-500 hover:text-red-700 focus:outline-none" data-i18n="clearHistory">清空历史</button>
+            </div>
+            <div class="px-4 pb-2">
+                <input type="text" id="historySearch" data-i18n="[placeholder]historySearchPlaceholder"
+                    placeholder="搜索历史记录"
+                    class="w-full px-2 py-1 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
             <div class="flex-grow overflow-y-auto px-4 pb-4">
                 <ul id="history-list" class="space-y-2"></ul>
             </div>
@@ -242,6 +252,7 @@
             const MAX_HISTORY = 500;
 
             let tldMap = null; // 缓存 whois.json 中的 TLD -> WHOIS 服务器映射
+            let currentXhr = null; // 当前正在进行的 AJAX 请求，发起新请求前会 abort 旧请求
 
             const $form = $('#whois-form');
             const $domain = $('#domain');
@@ -251,6 +262,8 @@
             const $originalInfo = $('#originalInfo');
             const $historyList = $('#history-list');
             const $clearInput = $('#clear-input');
+            const $historySearch = $('#historySearch');
+            const $clearHistoryBtn = $('#clearHistoryBtn');
             const $tldModal = $('#tldModal');
             const $tldList = $('#tldList');
             const $tldFilter = $('#tldFilter');
@@ -264,6 +277,17 @@
                 toggleClearButton();
                 initI18n();
                 loadTldMap(function () { }); // 后台预加载，供提交时校验后缀使用
+                registerServiceWorker();
+            }
+
+            function registerServiceWorker() {
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', function () {
+                        navigator.serviceWorker.register('/service-worker.js').catch(function () {
+                            // 注册失败静默处理，不影响主功能
+                        });
+                    });
+                }
             }
 
             function bindEvents() {
@@ -272,6 +296,8 @@
                 $(document).on('click', '#saveScreenshot', handleSaveScreenshot);
                 $domain.on('input', toggleClearButton);
                 $clearInput.on('click', clearInput);
+                $historySearch.on('input', updateSearchHistory);
+                $clearHistoryBtn.on('click', clearHistory);
                 $(document).on('keydown', handleGlobalKeydown);
                 $('#languageSelect').on('change', handleLanguageChange);
                 $('#openTldBtn').on('click', openTldModal);
@@ -388,12 +414,16 @@
             }
 
             function performWhoisLookup(domain) {
+                // 取消上一个未完成的请求，避免旧响应覆盖新结果
+                if (currentXhr) {
+                    currentXhr.abort();
+                }
                 updateButtonState(true);
                 updateUrl(domain);
                 $domain.val(domain);
                 toggleClearButton();
 
-                $.ajax({
+                currentXhr = $.ajax({
                     url: 'whois.php',
                     method: 'GET',
                     data: { domain },
@@ -401,8 +431,14 @@
                     success: function (response) {
                         handleWhoisResponse(response);
                     },
-                    error: handleWhoisError,
+                    error: function (jqXHR, textStatus) {
+                        // abort 触发的 error 不提示
+                        if (textStatus !== 'abort') {
+                            handleWhoisError(jqXHR, textStatus);
+                        }
+                    },
                     complete: () => {
+                        currentXhr = null;
                         updateButtonState(false);
                         updateContent();
                     }
@@ -426,6 +462,11 @@
             }
 
             function handleWhoisError(jqXHR, textStatus) {
+                // 429 限流时给出友好提示
+                if (jqXHR && jqXHR.status === 429) {
+                    showError(i18next.t('tooManyRequests'));
+                    return;
+                }
                 showError(`请求失败: ${textStatus}`);
             }
 
@@ -433,62 +474,65 @@
                 const whoisLines = whoisData.split('\n');
                 let importantInfo = {};
 
-                // 提取重要信息
+                // 提取重要信息（所有 value 存储为已转义的安全 HTML 字符串）
                 whoisLines.forEach(line => {
                     const [key, ...valueParts] = line.split(':');
                     const value = valueParts.join(':').trim();
 
                     if (key && value) {
                         const lowerKey = key.trim().toLowerCase();
+                        const safe = escapeHtml(value);
                         switch (lowerKey) {
                             case '域名':
                             case 'domain name':
                             case 'domain':
-                                importantInfo.domainName = value;
+                                importantInfo.domainName = safe;
                                 break;
                             case '注册商':
                             case 'registrar':
                             case 'sponsoring registrar':
-                                importantInfo.registrar = value;
+                                importantInfo.registrar = safe;
                                 break;
                             case 'whois server':
-                                importantInfo.whoisServer = value;
+                                importantInfo.whoisServer = safe;
                                 break;
                             case '更新日':
                             case 'updated date':
-                                importantInfo.updatedDate = convertToUTC8(value);
+                                importantInfo.updatedDate = escapeHtml(convertToUTC8(value));
                                 break;
                             case '注册日':
                             case 'creation date':
                             case 'registration time':
-                                importantInfo.creationDate = convertToUTC8(value);
+                                importantInfo.creationDate = escapeHtml(convertToUTC8(value));
                                 break;
                             case 'registry expiry date':
                             case 'expiration time':
-                                importantInfo.expiryDate = convertToUTC8(value);
+                                importantInfo.expiryDate = escapeHtml(convertToUTC8(value));
                                 break;
                             case 'iana_id':
-                                importantInfo.ianaId = value;
+                                importantInfo.ianaId = safe;
                                 break;
                             case '状态':
                             case 'domain status':
                             case 'status':
-                                importantInfo.status = value.split(' ').join("<br>");
+                                importantInfo.status = value.split(' ').map(escapeHtml).join("<br>");
                                 break;
                             case 'name server':
                             case 'ns':
-                                importantInfo.nameServers = importantInfo.nameServers ? importantInfo.nameServers + '<br>' + value : value;
+                                importantInfo.nameServers = importantInfo.nameServers
+                                    ? importantInfo.nameServers + '<br>' + safe
+                                    : safe;
                                 break;
                             case 'dnssec':
-                                importantInfo.dnssec = value;
+                                importantInfo.dnssec = safe;
                                 break;
                             case '注册人':
                             case 'registrant':
-                                importantInfo.registrant = value;
+                                importantInfo.registrant = safe;
                                 break;
                             case '注册人邮箱':
                             case 'registrant contact email':
-                                importantInfo.registrantEmail = value;
+                                importantInfo.registrantEmail = safe;
                                 break;
                         }
                     }
@@ -497,7 +541,7 @@
                 const registrationPeriod = calculatePeriod(importantInfo.creationDate, 'registrationPeriod');
                 const remainingTime = calculatePeriod(importantInfo.expiryDate, 'remainingTime');
 
-                // 生成重要信息HTML
+                // 生成重要信息HTML（value 经 escapeHtml 转义，防止 WHOIS 数据中的 HTML 注入）
                 let importantInfoHtml = `
                     <div id="importantInfoCard" class="bg-blue-50 rounded-lg p-2 sm:p-4 mb-4 sm:mb-6 relative">
                         <div class="flex justify-between items-center mb-2 sm:mb-3">
@@ -511,7 +555,7 @@
                         <div class="space-y-2">
                             ${Object.entries(importantInfo).map(([key, value]) => `
                                 <div class="flex flex-col sm:flex-row">
-                                    <span class="text-gray-600 font-semibold sm:w-32 sm:flex-shrink-0 sm:text-right sm:pr-2" data-i18n="${key}">${getLabel(key)}：</span>
+                                    <span class="text-gray-600 font-semibold sm:w-32 sm:flex-shrink-0 sm:text-right sm:pr-2" data-i18n="${escapeHtml(key)}">${escapeHtml(getLabel(key))}：</span>
                                     <span class="text-gray-800 break-words sm:flex-grow flex items-center">
                                         ${value}
                                         ${key === 'domainName' ? registrationPeriod : ''}
@@ -523,7 +567,7 @@
                     </div>
                 `;
 
-                // 生成原始信息的HTML
+                // 生成原始信息的HTML（whoisData 转义后插入）
                 let originalInfoHtml = `
                     <div class="bg-gray-50 rounded-lg p-2 sm:p-4">
                         <div class="flex justify-between items-center mb-2 sm:mb-3">
@@ -534,21 +578,42 @@
                                 </svg>
                             </button>
                         </div>
-                        <pre id="originalInfoContent" class="whitespace-pre-wrap text-sm break-words">${whoisData}</pre>
+                        <pre id="originalInfoContent" class="whitespace-pre-wrap text-sm break-words">${escapeHtml(whoisData)}</pre>
                     </div>
                 `;
 
                 return { importantInfoHtml, originalInfoHtml };
             }
 
-            // 添加这个新函数来转换时间为 UTC+8
+            // HTML 转义，防止 WHOIS 数据中的 HTML/JS 注入
+            function escapeHtml(str) {
+                if (str === null || str === undefined) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            // 将 WHOIS 日期转换为本地时区显示（浏览器自动处理时区偏移）
             function convertToUTC8(dateString) {
                 const date = new Date(dateString);
                 if (isNaN(date.getTime())) {
                     return dateString; // 如果日期无效，返回原始字符串
                 }
-                const utc8Date = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-                return utc8Date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' (UTC+8)');
+                // 用浏览器本地时区格式化，由 Date 解析的偏移量决定
+                const pad = n => String(n).padStart(2, '0');
+                const y = date.getFullYear();
+                const m = pad(date.getMonth() + 1);
+                const d = pad(date.getDate());
+                const hh = pad(date.getHours());
+                const mm = pad(date.getMinutes());
+                const ss = pad(date.getSeconds());
+                const tzOffset = -date.getTimezoneOffset() / 60;
+                const tzSign = tzOffset >= 0 ? '+' : '-';
+                const tzStr = `UTC${tzSign}${Math.abs(tzOffset)}`;
+                return `${y}-${m}-${d} ${hh}:${mm}:${ss} (${tzStr})`;
             }
 
             function calculatePeriod(dateString, type) {
@@ -584,15 +649,31 @@
             }
 
             function renderHistory(history) {
-                const historyHtml = history.length
-                    ? history.map(item => `
+                // 应用搜索框过滤
+                const keyword = ($historySearch.val() || '').trim().toLowerCase();
+                const filtered = keyword
+                    ? history.filter(item => String(item).toLowerCase().indexOf(keyword) !== -1)
+                    : history;
+
+                const historyHtml = filtered.length
+                    ? filtered.map(item => {
+                        const safe = escapeHtml(item);
+                        return `
                         <li class="bg-gray-50 p-2 rounded-md">
-                            <span class="text-xs sm:text-sm text-gray-600 block mb-1">${item}</span>
-                            <button class="search-again text-xs text-indigo-600 hover:text-indigo-800" data-domain="${item}" data-i18n="searchAgain">再次查询</button>
+                            <span class="text-xs sm:text-sm text-gray-600 block mb-1">${safe}</span>
+                            <button class="search-again text-xs text-indigo-600 hover:text-indigo-800" data-domain="${safe}" data-i18n="searchAgain">再次查询</button>
                         </li>
-                    `).join('')
+                    `;
+                    }).join('')
                     : `<li class="text-xs sm:text-sm text-gray-500 text-center" data-i18n="noHistory">暂无历史查询记录</li>`;
                 $historyList.html(historyHtml);
+            }
+
+            function clearHistory() {
+                if (!confirm(i18next.t('confirmClearHistory'))) return;
+                localStorage.removeItem(HISTORY_KEY);
+                $historySearch.val('');
+                renderHistory([]);
             }
 
             function updateButtonState(isLoading) {
@@ -613,7 +694,7 @@
 
             function showError(message) {
                 $importantInfo.html('');
-                $originalInfo.html(`<p class="text-red-500">${message}</p>`);
+                $originalInfo.html(`<p class="text-red-500">${escapeHtml(message)}</p>`);
                 $resultDiv.removeClass('hidden');
             }
 
@@ -646,10 +727,10 @@
                 // 临时隐藏截图按钮
                 $saveScreenshotBtn.hide();
 
-                // 使用 dom-to-image 进行截图
-                domtoimage.toPng(element, {
+                // 使用 modern-screenshot 进行截图
+                modernScreenshot.domToPng(element, {
                     quality: 1,
-                    bgcolor: '#ffffff'
+                    backgroundColor: '#ffffff'
                 })
                     .then(function (dataUrl) {
                         // 创建一个临时的 canvas 元素来添加水印
@@ -716,222 +797,30 @@
 
             function initI18n() {
                 const userLang = navigator.language || navigator.userLanguage; // 获取浏览器语言
-                const defaultLang = ['zh-CN', 'zh-TW', 'en', 'ru', 'es'].includes(userLang) ? userLang : 'zh-CN'; // 检查是否支持该语言，不支持则默认 'zh-CN'
+                const supported = ['zh-CN', 'zh-TW', 'en', 'ru', 'es'];
+                const defaultLang = supported.includes(userLang) ? userLang : 'zh-CN'; // 检查是否支持该语言，不支持则默认 'zh-CN'
 
-                i18next.init({
-                    lng: defaultLang, // 根据浏览器语言设置默认语言
-                    resources: {
-                        'zh-CN': {
-                            translation: {
-                                'title': 'WHOIS 查询',
-                                'inputPlaceholder': '请输入IP或者域名',
-                                'search': '查询',
-                                'searching': '查询中',
-                                'recentSearches': '最近查询',
-                                'noHistory': '暂无历史查询记录',
-                                'searchAgain': '再次查询',
-                                'whoisOverview': 'WHOIS 信息概览',
-                                'originalWhois': 'WHOIS 原始信息',
-                                'copyButton': '复制',
-                                'screenshotButton': '截图',
-                                'copiedToClipboard': '原始信息已复制到剪贴板',
-                                'copyFailed': '复制失败，请手动复制',
-                                'screenshotFailed': '截图失败，请稍后重试',
-                                'domainName': '域名',
-                                'registrar': '注册商',
-                                'whoisServer': 'WHOIS 服务器',
-                                'updatedDate': '更新日',
-                                'creationDate': '注册日',
-                                'expiryDate': '过期日',
-                                'remainingTime': '剩余 {{time}} {{unit}}',
-                                'registrationPeriod': '{{time}} {{unit}}',
-                                'years': '年',
-                                'months': '个月',
-                                'days': '天',
-                                'status': '状态',
-                                'nameServers': '域名服务器',
-                                'dnssec': 'DNSSEC',
-                                'registrant': '注册人',
-                                'registrantEmail': '注册人邮箱',
-                                'error': '错误: {message}',
-                                'requestFailed': '请求失败: {status}',
-                                'knownTlds': '已知域名后缀',
-                                'tldFilterPlaceholder': '搜索域名后缀或 WHOIS 服务器',
-                                'tldCount': '显示 {{count}} / 共 {{total}} 个',
-                                'notAvailable': '暂无',
-                                'noTldMatch': '无匹配的后缀',
-                                'unknownTldWarning': '未知域名后缀，将尝试通过默认服务器查询'
+                // 使用 i18next 的 http backend 异步加载 locales/<lang>.json
+                i18next.use({
+                    type: 'backend',
+                    read: function (language, namespace, callback) {
+                        $.ajax({
+                            url: 'locales/' + language + '.json',
+                            method: 'GET',
+                            dataType: 'json',
+                            success: function (data) {
+                                callback(null, data);
+                            },
+                            error: function () {
+                                callback('load failed', null);
                             }
-                        },
-                        'zh-TW': {
-                            translation: {
-                                'title': 'WHOIS 查詢',
-                                'inputPlaceholder': '請輸入IP或者域名',
-                                'search': '查詢',
-                                'searching': '查詢中',
-                                'recentSearches': '最近查詢',
-                                'noHistory': '暫無歷史查詢記錄',
-                                'searchAgain': '再次查詢',
-                                'whoisOverview': 'WHOIS 信息概覽',
-                                'originalWhois': 'WHOIS 原始信息',
-                                'copyButton': '複製',
-                                'screenshotButton': '截圖',
-                                'copiedToClipboard': '原始信息已複製到剪貼板',
-                                'copyFailed': '複製失敗，請手動複製',
-                                'screenshotFailed': '截圖失敗，請稍後重試',
-                                'domainName': '域名',
-                                'registrar': '註冊商',
-                                'whoisServer': 'WHOIS 伺服器',
-                                'updatedDate': '更新日',
-                                'creationDate': '註冊日',
-                                'expiryDate': '過期日',
-                                'remainingTime': '剩餘 {{time}} {{unit}}',
-                                'registrationPeriod': '{{time}} {{unit}}',
-                                'years': '年',
-                                'months': '個月',
-                                'days': '天',
-                                'status': '狀態',
-                                'nameServers': '域名伺服器',
-                                'dnssec': 'DNSSEC',
-                                'registrant': '註冊人',
-                                'registrantEmail': '註冊人郵箱',
-                                'error': '錯誤: {message}',
-                                'requestFailed': '請求失敗: {status}',
-                                'knownTlds': '已知域名後綴',
-                                'tldFilterPlaceholder': '搜尋域名後綴或 WHOIS 伺服器',
-                                'tldCount': '顯示 {{count}} / 共 {{total}} 個',
-                                'notAvailable': '暫無',
-                                'noTldMatch': '無匹配的後綴',
-                                'unknownTldWarning': '未知域名後綴，將嘗試通過預設伺服器查詢'
-                            }
-                        },
-                        'en': {
-                            translation: {
-                                'title': 'WHOIS Lookup',
-                                'inputPlaceholder': 'Enter IP or domain name',
-                                'search': 'Search',
-                                'searching': 'Searching',
-                                'recentSearches': 'Recent Searches',
-                                'noHistory': 'No search history',
-                                'searchAgain': 'Search Again',
-                                'whoisOverview': 'WHOIS Information Overview',
-                                'originalWhois': 'Original WHOIS Information',
-                                'copyButton': 'Copy',
-                                'screenshotButton': 'Screenshot',
-                                'copiedToClipboard': 'Original information copied to clipboard',
-                                'copyFailed': 'Copy failed, please copy manually',
-                                'screenshotFailed': 'Screenshot failed, please try again later',
-                                'domainName': 'Domain Name',
-                                'registrar': 'Registrar',
-                                'whoisServer': 'WHOIS Server',
-                                'updatedDate': 'Updated Date',
-                                'creationDate': 'Creation Date',
-                                'expiryDate': 'Expiry Date',
-                                'remainingTime': '{{time}} {{unit}} remaining',
-                                'registrationPeriod': '{{time}} {{unit}}',
-                                'years': 'years',
-                                'months': 'months',
-                                'days': 'days',
-                                'status': 'Status',
-                                'nameServers': 'Name Servers',
-                                'dnssec': 'DNSSEC',
-                                'registrant': 'Registrant',
-                                'registrantEmail': 'Registrant Email',
-                                'error': 'Error: {message}',
-                                'requestFailed': 'Request failed: {status}',
-                                'knownTlds': 'Known TLDs',
-                                'tldFilterPlaceholder': 'Search TLD or WHOIS server',
-                                'tldCount': 'Showing {{count}} of {{total}}',
-                                'notAvailable': 'N/A',
-                                'noTldMatch': 'No matching TLD',
-                                'unknownTldWarning': 'Unknown TLD, will try querying via the default server'
-                            }
-                        },
-                        'ru': {
-                            translation: {
-                                'title': 'WHOIS Поиск',
-                                'inputPlaceholder': 'Введите IP или доменное имя',
-                                'search': 'Поиск',
-                                'searching': 'Поиск...',
-                                'recentSearches': 'Недавние запросы',
-                                'noHistory': 'Нет истории поиска',
-                                'searchAgain': 'Искать снова',
-                                'whoisOverview': 'Обзор информации WHOIS',
-                                'originalWhois': 'Оригинальная информация WHOIS',
-                                'copyButton': 'Копировать',
-                                'screenshotButton': 'Скриншот',
-                                'copiedToClipboard': 'Оригинальная информация скопирована в буфер обмена',
-                                'copyFailed': 'Не удалось скопировать, пожалуйста, скопируйте вручную',
-                                'screenshotFailed': 'Не удалось сделать скриншот, попробуйте позже',
-                                'domainName': 'Доменное имя',
-                                'registrar': 'Регистратор',
-                                'whoisServer': 'WHOIS сервер',
-                                'updatedDate': 'Дата обновления',
-                                'creationDate': 'Дата создания',
-                                'expiryDate': 'Дата истечения',
-                                'remainingTime': 'Осталось {{time}} {{unit}}',
-                                'registrationPeriod': '{{time}} {{unit}}',
-                                'years': 'лет',
-                                'months': 'месяцев',
-                                'days': 'дней',
-                                'status': 'Статус',
-                                'nameServers': 'Имена серверов',
-                                'dnssec': 'DNSSEC',
-                                'registrant': 'Регистрант',
-                                'registrantEmail': 'Email регистранта',
-                                'error': 'Ошибка: {message}',
-                                'requestFailed': 'Запрос не выполнен: {status}',
-                                'knownTlds': 'Известные TLD',
-                                'tldFilterPlaceholder': 'Поиск TLD или WHOIS сервера',
-                                'tldCount': 'Показано {{count}} из {{total}}',
-                                'notAvailable': 'Н/Д',
-                                'noTldMatch': 'Совпадений не найдено',
-                                'unknownTldWarning': 'Неизвестный TLD, запрос будет выполнен через сервер по умолчанию'
-                            }
-                        },
-                        'es': {
-                            translation: {
-                                'title': 'Consulta WHOIS',
-                                'inputPlaceholder': 'Ingrese IP o nombre de dominio',
-                                'search': 'Buscar',
-                                'searching': 'Buscando...',
-                                'recentSearches': 'Búsquedas recientes',
-                                'noHistory': 'No hay historial de búsqueda',
-                                'searchAgain': 'Buscar de nuevo',
-                                'whoisOverview': 'Resumen de información WHOIS',
-                                'originalWhois': 'Información original de WHOIS',
-                                'copyButton': 'Copiar',
-                                'screenshotButton': 'Captura de pantalla',
-                                'copiedToClipboard': 'Información original copiada al portapapeles',
-                                'copyFailed': 'Error al copiar, por favor copie manualmente',
-                                'screenshotFailed': 'Error al tomar captura de pantalla, intente nuevamente más tarde',
-                                'domainName': 'Nombre de dominio',
-                                'registrar': 'Registrador',
-                                'whoisServer': 'Servidor WHOIS',
-                                'updatedDate': 'Fecha de actualización',
-                                'creationDate': 'Fecha de creación',
-                                'expiryDate': 'Fecha de expiración',
-                                'remainingTime': '{{time}} {{unit}} restantes',
-                                'registrationPeriod': '{{time}} {{unit}}',
-                                'years': 'años',
-                                'months': 'meses',
-                                'days': 'días',
-                                'status': 'Estado',
-                                'nameServers': 'Servidores de nombres',
-                                'dnssec': 'DNSSEC',
-                                'registrant': 'Registrante',
-                                'registrantEmail': 'Email del registrante',
-                                'error': 'Error: {message}',
-                                'requestFailed': 'Solicitud fallida: {status}',
-                                'knownTlds': 'TLD conocidos',
-                                'tldFilterPlaceholder': 'Buscar TLD o servidor WHOIS',
-                                'tldCount': 'Mostrando {{count}} de {{total}}',
-                                'notAvailable': 'N/D',
-                                'noTldMatch': 'Sin coincidencias',
-                                'unknownTldWarning': 'TLD desconocido, se intentará consultar mediante el servidor predeterminado'
-                            }
-                        }
+                        });
                     }
+                }).init({
+                    lng: defaultLang,
+                    fallbackLng: 'zh-CN',
+                    ns: ['translation'],
+                    defaultNS: 'translation'
                 }, function (err, t) {
                     updateContent();
                 });
