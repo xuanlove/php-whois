@@ -2,62 +2,73 @@
 
 ## 简介 / Introduction
 
-这是一个简单的PHP WHOIS 查询工具，允许用户查询域名或 IP 地址的 WHOIS 信息。该工具提供了用户友好的界面，支持多语言，并具有历史记录和截图功能。
+一个轻量级的 PHP WHOIS 查询工具，支持域名与 IP 地址的 WHOIS 信息查询。前端采用现代化简约设计，原生实现零第三方 JS 依赖，后端支持 WHOIS 重定向跟随、IDN 域名、查询缓存与请求限流。
 
-This is a simple PHP WHOIS lookup tool that allows users to query WHOIS information for domain names or IP addresses. The tool provides a user-friendly interface, supports multiple languages, and features search history and screenshot functionality.
+A lightweight PHP WHOIS lookup tool supporting WHOIS queries for both domain names and IP addresses. The frontend features a modern minimalist design with zero third-party JS dependencies, while the backend supports WHOIS referral following, IDN domains, query caching, and rate limiting.
 
 ## 在线演示 / Online Demo
 
 [https://whois.rw2.cc/](https://whois.rw2.cc/)
 
-
 ## 功能 / Features
 
-- WHOIS 信息查询 / WHOIS information lookup
-- 多语言支持（中文简体、中文繁体、英语、俄语、西班牙语）/ Multi-language support (Simplified Chinese, Traditional Chinese, English, Russian, Spanish)
-- 查询历史记录 / Search history
-- WHOIS 信息截图 / WHOIS information screenshot
-- 响应式设计 / Responsive design
+- WHOIS 信息查询（域名 & IP）/ WHOIS lookup for domains and IP addresses
+- 查询结果概览卡 + 可折叠原始 WHOIS / Overview card with collapsible raw WHOIS
+- 注册时长与到期剩余时间标签 / Registration period and expiry countdown badges
+- 查询历史记录（本地存储，最近 50 条）/ Search history (local storage, last 50 entries)
+- 多语言支持（简中、繁中、英语、俄语、西班牙语）/ Multi-language (zh-CN, zh-TW, en, ru, es)
+- 响应式设计（桌面侧边栏 + 移动端底部抽屉）/ Responsive (desktop sidebar + mobile bottom drawer)
+- 后端 WHOIS 重定向跟随 / Backend WHOIS referral following
+- IDN 域名 Punycode 转换 / IDN domain Punycode conversion
+- APCu 查询结果缓存与请求限流 / APCu result caching and rate limiting
+- WHOIS 数据 HTML 转义防注入 / HTML-escaped WHOIS data to prevent injection
 
 ## whois.json
 
-这个文件包含了顶级域名(TLD)及其对应的WHOIS服务器信息。它是一个JSON格式的对象,其中:
-- 键(key)是顶级域名,包括通用顶级域名(gTLD)、国家代码顶级域名(ccTLD)和国际化域名(IDN) TLD。
-- 值(value)是对应的WHOIS服务器地址。如果值为null,则表示该TLD没有指定的WHOIS服务器或者信息不可用。
+TLD 与对应 WHOIS 服务器的映射表（JSON 对象）：
+- **键**：顶级域名，包含 gTLD、ccTLD 及 IDN TLD
+- **值**：对应的 WHOIS 服务器地址，`null` 表示无指定服务器
 
-This file contains information about numerous Top-Level Domains (TLDs) and their corresponding WHOIS servers. It is a JSON object where:
-- The keys are TLDs, including generic TLDs (gTLDs), country code TLDs (ccTLDs), and Internationalized Domain Name (IDN) TLDs.
-- The values are the addresses of the corresponding WHOIS servers. A null value indicates that no specific WHOIS server is designated for that TLD or the information is unavailable.
+后端按多级后缀优先匹配（如 `com.cn`），未知后缀回退到 `whois.iana.org`。
 
+A mapping of TLDs to their WHOIS servers (JSON object):
+- **Keys**: TLDs including gTLDs, ccTLDs, and IDN TLDs
+- **Values**: corresponding WHOIS server addresses, `null` if unavailable
+
+The backend matches multi-level suffixes first (e.g. `com.cn`), falling back to `whois.iana.org` for unknown TLDs.
 
 ## 技术栈 / Tech Stack
 
-- 前端 / Frontend: HTML, CSS (Tailwind CSS), JavaScript (jQuery)
-- 后端 / Backend: PHP
-- 其他库 / Other libraries: i18next, dom-to-image, clipboard.js
+- 前端 / Frontend: HTML, CSS（CSS 变量主题）, 原生 JavaScript（无第三方 JS 依赖）/ Vanilla JavaScript, no third-party JS dependencies
+- 后端 / Backend: PHP（支持 APCu 可选优化）/ PHP (APCu optional)
 
 ## 安装 / Installation
 
 1. 克隆仓库 / Clone the repository:
    ```
-   git clone https://github.com/tsymq-live/php-whois.git
+   git clone https://github.com/xuanlove/php-whois.git
    ```
 
-2. 将文件放置在您的 Web 服务器目录中 / Place the files in your web server directory.
+2. 将文件放置在 Web 服务器目录中 / Place the files in your web server directory.
 
-3. 确保您的 Web 服务器支持 PHP / Ensure your web server supports PHP.
+3. 确保 Web 服务器支持 PHP（建议 PHP 7.4+）/ Ensure your web server supports PHP (7.4+ recommended).
 
-4. 访问 `index.html` 文件以使用该工具 / Access the `index.html` file to use the tool.
+4. 访问 `index.html` 即可使用 / Access `index.html` to use the tool.
+
+> 可选 / Optional：安装 APCu 扩展以启用查询缓存与请求限流；未安装时功能正常降级。
+> Install APCu extension to enable caching and rate limiting; degrades gracefully if absent.
 
 ## 使用方法 / Usage
 
-1. 在输入框中输入域名或 IP 地址 / Enter a domain name or IP address in the input field.
-2. 点击"查询"按钮或按回车键 / Click the "Search" button or press Enter.
-3. 查看 WHOIS 信息概览和原始信息 / View the WHOIS information overview and original information.
-4. 可以使用截图功能保存信息 / Use the screenshot feature to save the information.
-5. 查看和使用查询历史记录 / View and use the search history.
+1. 在输入框输入域名或 IP 地址 / Enter a domain name or IP address.
+2. 点击「查询」按钮或按回车键 / Click "Search" or press Enter.
+3. 查看概览卡中的结构化字段（域名、注册商、日期、状态、DNS 等）/ View structured fields in the overview card.
+4. 点击「展开原文」查看完整 WHOIS 原始信息 / Click "Expand" to view raw WHOIS.
+5. 点击侧边栏（移动端为底部抽屉）中的历史记录可快速重查 / Click a history entry to re-query instantly.
+6. 顶栏下拉切换语言，自动记忆偏好 / Switch language via the top bar dropdown, preference is remembered.
 
 ## 伪静态规则 / Pseudo-static Rules
+
 ```
 location / {
     try_files $uri $uri/ /index.html;
