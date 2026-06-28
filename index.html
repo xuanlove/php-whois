@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="title">WHOIS 查询</title>
-    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script>
     <style>
         :root {
             --bg: #f4f5f7;
@@ -487,7 +486,7 @@
     </div>
 
     <script>
-        $(function () {
+        document.addEventListener('DOMContentLoaded', function () {
             const HISTORY_KEY = 'whoisHistory';
             const MAX_HISTORY = 50;
             const STORAGE_LANG = 'whoisLang';
@@ -561,18 +560,24 @@
             };
 
             let currentLang = localStorage.getItem(STORAGE_LANG) || detectLang();
-            let currentXhr = null;
+            let currentController = null; // 当前 fetch 的 AbortController，发起新请求前取消旧请求
+            let lastResponse = null;
 
-            const $form = $('#whoisForm');
-            const $input = $('#domainInput');
-            const $submit = $('#submitBtn');
-            const $spinner = $('#spinner');
-            const $clearBtn = $('#clearBtn');
-            const $result = $('#resultArea');
-            const $historyList = $('#historyList');
-            const $historyListMobile = $('#historyListMobile');
-            const $drawer = $('#historyDrawer');
-            const $overlay = $('#drawerOverlay');
+            // DOM 引用
+            const form = document.getElementById('whoisForm');
+            const input = document.getElementById('domainInput');
+            const submitBtn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('spinner');
+            const clearBtn = document.getElementById('clearBtn');
+            const resultArea = document.getElementById('resultArea');
+            const historyList = document.getElementById('historyList');
+            const historyListMobile = document.getElementById('historyListMobile');
+            const drawer = document.getElementById('historyDrawer');
+            const overlay = document.getElementById('drawerOverlay');
+            const langSelect = document.getElementById('langSelect');
+            const historyToggle = document.getElementById('historyToggle');
+            const clearHistoryBtn = document.getElementById('clearHistory');
+            const clearHistoryMobileBtn = document.getElementById('clearHistoryMobile');
 
             function detectLang() {
                 const lang = navigator.language || navigator.userLanguage;
@@ -582,16 +587,15 @@
             function t(key) { return (i18n[currentLang] && i18n[currentLang][key]) || key; }
 
             function applyI18n() {
-                $('[data-i18n]').each(function () {
-                    const $el = $(this);
-                    const key = $el.data('i18n');
+                document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                    const key = el.getAttribute('data-i18n');
                     if (key.indexOf('[placeholder]') === 0) {
-                        $el.attr('placeholder', t(key.replace('[placeholder]', '')));
+                        el.setAttribute('placeholder', t(key.replace('[placeholder]', '')));
                     } else {
-                        $el.text(t(key));
+                        el.textContent = t(key);
                     }
                 });
-                $('#langSelect').val(currentLang);
+                langSelect.value = currentLang;
             }
 
             // HTML 转义，防止 WHOIS 数据注入
@@ -660,17 +664,14 @@
                 return { info: info, rawDates: rawDates };
             }
 
-            // 缓存最近一次查询的响应，供语言切换时重新渲染
-            let lastResponse = null;
-
             function renderResult(response) {
                 lastResponse = response;
                 if (response.error) {
-                    $result.html(`<div class="error-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${esc(t('errorPrefix'))}: ${esc(response.error)}</span></div>`);
+                    resultArea.innerHTML = `<div class="error-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${esc(t('errorPrefix'))}: ${esc(response.error)}</span></div>`;
                     return;
                 }
                 if (!response.whois) {
-                    $result.html(`<div class="error-box"><span>${esc(t('errorPrefix'))}: empty response</span></div>`);
+                    resultArea.innerHTML = `<div class="error-box"><span>${esc(t('errorPrefix'))}: empty response</span></div>`;
                     return;
                 }
                 const { info, rawDates } = parseWhois(response.whois);
@@ -681,7 +682,7 @@
                     return `<div class="info-row"><div class="info-key">${esc(t(key))}</div><div class="info-val">${display}</div></div>`;
                 }).join('');
 
-                $result.html(`
+                resultArea.innerHTML = `
                     <div class="overview-card">
                         <div class="card-head">
                             <h3>${esc(t('overview'))}</h3>
@@ -692,61 +693,75 @@
                     <div class="raw-card">
                         <div class="card-head">
                             <h3>${esc(t('rawInfo'))}</h3>
-                            <button class="raw-toggle" id="rawToggle">
+                            <button class="raw-toggle" id="rawToggle" type="button">
                                 <span id="rawToggleText">${esc(t('expandRaw'))}</span>
                                 <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                             </button>
                         </div>
                         <div class="raw-body" id="rawBody"><pre class="raw-content">${esc(response.whois)}</pre></div>
                     </div>
-                `);
+                `;
 
-                $('#rawToggle').on('click', function () {
-                    const $body = $('#rawBody');
-                    const open = $body.hasClass('open');
-                    $body.toggleClass('open', !open);
-                    $(this).toggleClass('expanded', !open);
-                    $('#rawToggleText').text(open ? t('expandRaw') : t('collapseRaw'));
+                document.getElementById('rawToggle').addEventListener('click', function () {
+                    const body = document.getElementById('rawBody');
+                    const open = body.classList.contains('open');
+                    body.classList.toggle('open', !open);
+                    this.classList.toggle('expanded', !open);
+                    document.getElementById('rawToggleText').textContent = open ? t('expandRaw') : t('collapseRaw');
                 });
             }
 
             function setLoading(loading) {
-                $submit.prop('disabled', loading);
-                $spinner.css('display', loading ? 'inline-block' : 'none');
-                $submit.find('.label').text(loading ? t('searching') : t('search'));
+                submitBtn.disabled = loading;
+                spinner.style.display = loading ? 'inline-block' : 'none';
+                submitBtn.querySelector('.label').textContent = loading ? t('searching') : t('search');
             }
 
+            // 调用后台 whois.php 查询
             function lookup(domain) {
-                if (currentXhr) currentXhr.abort();
+                // 取消上一个未完成的请求，避免旧响应覆盖新结果
+                if (currentController) currentController.abort();
                 setLoading(true);
-                currentXhr = $.ajax({
-                    url: 'whois.php',
-                    method: 'GET',
-                    data: { domain: domain },
-                    dataType: 'json',
-                    success: function (resp) { renderResult(resp); addHistory(domain); },
-                    error: function (xhr, status) {
-                        if (status === 'abort') return;
-                        renderResult({ error: t('requestFailed') + ' (' + (xhr.status || status) + ')' });
-                    },
-                    complete: function () { currentXhr = null; setLoading(false); }
-                });
+                currentController = new AbortController();
+                const url = 'whois.php?domain=' + encodeURIComponent(domain);
+                fetch(url, { signal: currentController.signal })
+                    .then(function (resp) {
+                        // 即使非 200 也尝试解析 JSON（后台错误也返回 JSON）
+                        return resp.json().then(function (data) {
+                            return data;
+                        }).catch(function () {
+                            return { error: 'HTTP ' + resp.status };
+                        });
+                    })
+                    .then(function (resp) {
+                        renderResult(resp);
+                        addHistory(domain);
+                    })
+                    .catch(function (err) {
+                        if (err.name === 'AbortError') return; // 主动取消，不提示
+                        renderResult({ error: t('requestFailed') + ' (' + (err.message || err) + ')' });
+                    })
+                    .finally(function () {
+                        currentController = null;
+                        setLoading(false);
+                    });
             }
 
-            $form.on('submit', function (e) {
+            form.addEventListener('submit', function (e) {
                 e.preventDefault();
-                const domain = $input.val().trim();
+                const domain = input.value.trim();
                 if (!domain) return;
                 lookup(domain);
             });
 
-            $input.on('input', function () {
-                $clearBtn.toggleClass('visible', !!$(this).val());
+            input.addEventListener('input', function () {
+                clearBtn.classList.toggle('visible', !!this.value);
             });
 
-            $clearBtn.on('click', function () {
-                $input.val('').focus();
-                $clearBtn.removeClass('visible');
+            clearBtn.addEventListener('click', function () {
+                input.value = '';
+                input.focus();
+                clearBtn.classList.remove('visible');
             });
 
             // 历史
@@ -765,20 +780,16 @@
 
             function renderHistory() {
                 const history = getHistory();
-                const render = ($list) => {
-                    if (!history.length) {
-                        $list.html(`<li class="history-empty">${esc(t('noHistory'))}</li>`);
-                        return;
-                    }
-                    $list.html(history.map(item => `
+                const html = history.length
+                    ? history.map(item => `
                         <li class="history-item" data-domain="${esc(item.domain)}">
                             <span class="history-domain">${esc(item.domain)}</span>
                             <span class="history-time">${formatRelative(item.time)}</span>
                         </li>
-                    `).join(''));
-                };
-                render($historyList);
-                render($historyListMobile);
+                    `).join('')
+                    : `<li class="history-empty">${esc(t('noHistory'))}</li>`;
+                historyList.innerHTML = html;
+                historyListMobile.innerHTML = html;
             }
 
             function formatRelative(ts) {
@@ -792,37 +803,43 @@
                 return d + 'd';
             }
 
-            $(document).on('click', '.history-item', function () {
-                const domain = $(this).data('domain');
-                $input.val(domain);
-                $clearBtn.addClass('visible');
+            // 历史项点击：事件委托（两个列表共用）
+            function handleHistoryClick(e) {
+                const item = e.target.closest('.history-item');
+                if (!item) return;
+                const domain = item.getAttribute('data-domain');
+                input.value = domain;
+                clearBtn.classList.add('visible');
                 closeDrawer();
                 lookup(domain);
-                $('html, body').animate({ scrollTop: 0 }, 200);
-            });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            historyList.addEventListener('click', handleHistoryClick);
+            historyListMobile.addEventListener('click', handleHistoryClick);
 
-            $('#clearHistory, #clearHistoryMobile').on('click', function () {
+            function clearAllHistory() {
                 if (!confirm(t('clearConfirm'))) return;
                 localStorage.removeItem(HISTORY_KEY);
                 renderHistory();
-            });
+            }
+            clearHistoryBtn.addEventListener('click', clearAllHistory);
+            clearHistoryMobileBtn.addEventListener('click', clearAllHistory);
 
             // 移动端抽屉
-            $('#historyToggle').on('click', openDrawer);
-            $overlay.on('click', closeDrawer);
-
             function openDrawer() {
-                $drawer.addClass('open');
-                $overlay.addClass('open');
+                drawer.classList.add('open');
+                overlay.classList.add('open');
             }
             function closeDrawer() {
-                $drawer.removeClass('open');
-                $overlay.removeClass('open');
+                drawer.classList.remove('open');
+                overlay.classList.remove('open');
             }
+            historyToggle.addEventListener('click', openDrawer);
+            overlay.addEventListener('click', closeDrawer);
 
             // 语言切换
-            $('#langSelect').on('change', function () {
-                currentLang = $(this).val();
+            langSelect.addEventListener('change', function () {
+                currentLang = this.value;
                 localStorage.setItem(STORAGE_LANG, currentLang);
                 applyI18n();
                 // 若已有结果，重新渲染以更新字段标签与时间跨度文案
