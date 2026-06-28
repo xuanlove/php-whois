@@ -101,6 +101,46 @@
             right: 10px;
         }
 
+        .tld-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        .tld-modal {
+            background-color: #fff;
+            width: 90%;
+            max-width: 560px;
+            max-height: 80vh;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tld-list {
+            scrollbar-width: thin;
+            scrollbar-color: #4B5563 #E5E7EB;
+        }
+
+        .tld-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .tld-list::-webkit-scrollbar-track {
+            background: #E5E7EB;
+        }
+
+        .tld-list::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 20px;
+            border: 2px solid #E5E7EB;
+        }
+
         @media (max-width: 640px) {
             .result-container {
                 padding-bottom: 65px;
@@ -153,6 +193,11 @@
                     </button>
                 </div>
             </form>
+            <div class="mb-4 flex justify-end">
+                <button type="button" id="openTldBtn"
+                    class="text-sm text-indigo-600 hover:text-indigo-800 focus:outline-none"
+                    data-i18n="knownTlds">已知域名后缀</button>
+            </div>
             <div id="resultDiv" class="hidden flex-grow overflow-hidden">
                 <div class="h-full overflow-y-auto result-container pb-16 sm:pb-0">
                     <div id="importantInfo"></div>
@@ -169,12 +214,34 @@
         </div>
     </div>
 
+    <div id="tldModal" class="tld-modal-overlay hidden">
+        <div class="tld-modal shadow-xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h3 class="text-lg font-bold text-gray-800" data-i18n="knownTlds">已知域名后缀</h3>
+                <button type="button" id="closeTldBtn" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 border-b border-gray-200">
+                <input type="text" id="tldFilter" data-i18n="[placeholder]tldFilterPlaceholder"
+                    placeholder="搜索域名后缀或 WHOIS 服务器"
+                    class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                <p id="tldCount" class="text-xs text-gray-500 mt-2"></p>
+            </div>
+            <div id="tldList" class="tld-list flex-grow overflow-y-auto p-4 space-y-1"></div>
+        </div>
+    </div>
+
     <div id="toast" class="toast"></div>
 
     <script>
         $(document).ready(function () {
             const HISTORY_KEY = 'whoisHistory';
             const MAX_HISTORY = 500;
+
+            let tldMap = null; // 缓存 whois.json 中的 TLD -> WHOIS 服务器映射
 
             const $form = $('#whois-form');
             const $domain = $('#domain');
@@ -184,6 +251,10 @@
             const $originalInfo = $('#originalInfo');
             const $historyList = $('#history-list');
             const $clearInput = $('#clear-input');
+            const $tldModal = $('#tldModal');
+            const $tldList = $('#tldList');
+            const $tldFilter = $('#tldFilter');
+            const $tldCount = $('#tldCount');
 
             function init() {
                 bindEvents();
@@ -192,6 +263,7 @@
                 updateSearchHistory();
                 toggleClearButton();
                 initI18n();
+                loadTldMap(function () { }); // 后台预加载，供提交时校验后缀使用
             }
 
             function bindEvents() {
@@ -202,12 +274,112 @@
                 $clearInput.on('click', clearInput);
                 $(document).on('keydown', handleGlobalKeydown);
                 $('#languageSelect').on('change', handleLanguageChange);
+                $('#openTldBtn').on('click', openTldModal);
+                $('#closeTldBtn').on('click', closeTldModal);
+                $tldFilter.on('input', renderTldList);
+                $(document).on('click', '.tld-item', handleTldItemClick);
+                $tldModal.on('click', function (e) {
+                    if (e.target === this) closeTldModal();
+                });
             }
 
             function handleFormSubmit(e) {
                 e.preventDefault();
                 const domain = $domain.val().trim();
-                if (domain) performWhoisLookup(domain);
+                if (!domain) return;
+                // 校验域名后缀是否已知（IP 地址跳过）
+                if (!filter_var_is_ip(domain) && !isKnownTld(domain)) {
+                    showToast('unknownTldWarning');
+                }
+                performWhoisLookup(domain);
+            }
+
+            // 模拟 PHP 的 FILTER_VALIDATE_IP
+            function filter_var_is_ip(value) {
+                if (/^\d{1,3}(\.\d{1,3}){3}$/.test(value)) {
+                    return value.split('.').every(n => +n >= 0 && +n <= 255);
+                }
+                // IPv6 简单判断
+                return /^[0-9a-fA-F:]+$/.test(value) && value.includes(':');
+            }
+
+            // 判断域名后缀是否在 whois.json 中已知
+            function isKnownTld(domain) {
+                if (!tldMap) return true; // 数据未加载完成时不拦截
+                const parts = domain.toLowerCase().split('.');
+                if (parts.length < 2) return false;
+                // 优先匹配多级后缀（如 .co.uk 不在表中，则取最后一段）
+                for (let i = 1; i < parts.length; i++) {
+                    const candidate = parts.slice(i).join('.');
+                    if (Object.prototype.hasOwnProperty.call(tldMap, candidate)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // 加载 whois.json（带缓存）
+            function loadTldMap(callback) {
+                if (tldMap) {
+                    callback(tldMap);
+                    return;
+                }
+                $.ajax({
+                    url: 'whois.json',
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function (data) {
+                        tldMap = data || {};
+                        callback(tldMap);
+                    },
+                    error: function () {
+                        tldMap = {};
+                        callback(tldMap);
+                    }
+                });
+            }
+
+            function openTldModal() {
+                loadTldMap(function () {
+                    $tldFilter.val('');
+                    renderTldList();
+                    $tldModal.removeClass('hidden');
+                });
+            }
+
+            function closeTldModal() {
+                $tldModal.addClass('hidden');
+            }
+
+            function renderTldList() {
+                const keyword = $tldFilter.val().trim().toLowerCase();
+                const entries = Object.entries(tldMap).filter(function ([tld, server]) {
+                    if (!keyword) return true;
+                    return tld.indexOf(keyword) !== -1 || (server && server.toLowerCase().indexOf(keyword) !== -1);
+                });
+
+                const total = Object.keys(tldMap).length;
+                $tldCount.text(i18next.t('tldCount', { count: entries.length, total: total }));
+
+                const html = entries.map(function ([tld, server]) {
+                    const serverText = server || i18next.t('notAvailable');
+                    const serverClass = server ? 'text-gray-600' : 'text-gray-400 italic';
+                    return `
+                        <div class="tld-item flex justify-between items-center bg-gray-50 hover:bg-indigo-50 rounded-md px-3 py-2 cursor-pointer" data-tld="${tld}">
+                            <span class="text-gray-800 font-medium">.${tld}</span>
+                            <span class="text-xs ${serverClass} break-all ml-2 text-right">${serverText}</span>
+                        </div>
+                    `;
+                }).join('');
+                $tldList.html(html || `<p class="text-sm text-gray-500 text-center" data-i18n="noTldMatch">无匹配的后缀</p>`);
+            }
+
+            function handleTldItemClick() {
+                const tld = $(this).data('tld');
+                $domain.val('example.' + tld);
+                toggleClearButton();
+                closeTldModal();
+                $domain.focus();
             }
 
             function handleSearchAgain() {
@@ -582,7 +754,13 @@
                                 'registrant': '注册人',
                                 'registrantEmail': '注册人邮箱',
                                 'error': '错误: {message}',
-                                'requestFailed': '请求失败: {status}'
+                                'requestFailed': '请求失败: {status}',
+                                'knownTlds': '已知域名后缀',
+                                'tldFilterPlaceholder': '搜索域名后缀或 WHOIS 服务器',
+                                'tldCount': '显示 {{count}} / 共 {{total}} 个',
+                                'notAvailable': '暂无',
+                                'noTldMatch': '无匹配的后缀',
+                                'unknownTldWarning': '未知域名后缀，将尝试通过默认服务器查询'
                             }
                         },
                         'zh-TW': {
@@ -618,7 +796,13 @@
                                 'registrant': '註冊人',
                                 'registrantEmail': '註冊人郵箱',
                                 'error': '錯誤: {message}',
-                                'requestFailed': '請求失敗: {status}'
+                                'requestFailed': '請求失敗: {status}',
+                                'knownTlds': '已知域名後綴',
+                                'tldFilterPlaceholder': '搜尋域名後綴或 WHOIS 伺服器',
+                                'tldCount': '顯示 {{count}} / 共 {{total}} 個',
+                                'notAvailable': '暫無',
+                                'noTldMatch': '無匹配的後綴',
+                                'unknownTldWarning': '未知域名後綴，將嘗試通過預設伺服器查詢'
                             }
                         },
                         'en': {
@@ -654,7 +838,13 @@
                                 'registrant': 'Registrant',
                                 'registrantEmail': 'Registrant Email',
                                 'error': 'Error: {message}',
-                                'requestFailed': 'Request failed: {status}'
+                                'requestFailed': 'Request failed: {status}',
+                                'knownTlds': 'Known TLDs',
+                                'tldFilterPlaceholder': 'Search TLD or WHOIS server',
+                                'tldCount': 'Showing {{count}} of {{total}}',
+                                'notAvailable': 'N/A',
+                                'noTldMatch': 'No matching TLD',
+                                'unknownTldWarning': 'Unknown TLD, will try querying via the default server'
                             }
                         },
                         'ru': {
@@ -690,7 +880,13 @@
                                 'registrant': 'Регистрант',
                                 'registrantEmail': 'Email регистранта',
                                 'error': 'Ошибка: {message}',
-                                'requestFailed': 'Запрос не выполнен: {status}'
+                                'requestFailed': 'Запрос не выполнен: {status}',
+                                'knownTlds': 'Известные TLD',
+                                'tldFilterPlaceholder': 'Поиск TLD или WHOIS сервера',
+                                'tldCount': 'Показано {{count}} из {{total}}',
+                                'notAvailable': 'Н/Д',
+                                'noTldMatch': 'Совпадений не найдено',
+                                'unknownTldWarning': 'Неизвестный TLD, запрос будет выполнен через сервер по умолчанию'
                             }
                         },
                         'es': {
@@ -726,7 +922,13 @@
                                 'registrant': 'Registrante',
                                 'registrantEmail': 'Email del registrante',
                                 'error': 'Error: {message}',
-                                'requestFailed': 'Solicitud fallida: {status}'
+                                'requestFailed': 'Solicitud fallida: {status}',
+                                'knownTlds': 'TLD conocidos',
+                                'tldFilterPlaceholder': 'Buscar TLD o servidor WHOIS',
+                                'tldCount': 'Mostrando {{count}} de {{total}}',
+                                'notAvailable': 'N/D',
+                                'noTldMatch': 'Sin coincidencias',
+                                'unknownTldWarning': 'TLD desconocido, se intentará consultar mediante el servidor predeterminado'
                             }
                         }
                     }
