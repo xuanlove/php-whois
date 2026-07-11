@@ -23,23 +23,9 @@ define('WHOIS_PORT', 43);
 define('WHOIS_TIMEOUT', 12);
 
 // RDAP 服务器补充列表（IANA 根数据库未列出 RDAP Server，但实际提供 RDAP 服务的 ccTLD）
-// 这些注册局的 IANA 详情页只有 WHOIS Server 字段，无 RDAP Server 字段，
-// 但实际已部署 RDAP 服务，此处补充以保证优先走 RDAP。
-$EXTRA_RDAP_SERVERS = [
-    'cn'       => 'https://rdap.cnnic.cn',
-    'com.cn'   => 'https://rdap.cnnic.cn',
-    'net.cn'   => 'https://rdap.cnnic.cn',
-    'org.cn'   => 'https://rdap.cnnic.cn',
-    'gov.cn'   => 'https://rdap.cnnic.cn',
-    'ac.cn'    => 'https://rdap.cnnic.cn',
-    'bj.cn'    => 'https://rdap.cnnic.cn',
-    'sh.cn'    => 'https://rdap.cnnic.cn',
-    'gd.cn'    => 'https://rdap.cnnic.cn',
-    'zj.cn'    => 'https://rdap.cnnic.cn',
-    'jp'       => 'https://rdap.jprs.jp',
-    'kr'       => 'https://rdap.kisa.or.kr',
-    'ru'       => 'https://rdap.tcinet.ru',
-];
+// 注意：cn/jp/kr/ru 的 RDAP 服务器经实测均不可用（连接失败），这些 ccTLD 实际未部署 RDAP，
+// 已全部移除，改为直接走 WHOIS 查询。若将来某 ccTLD 部署了 RDAP，可在此补充。
+$EXTRA_RDAP_SERVERS = [];
 
 // 入口
 if (!isset($_GET['domain']) || $_GET['domain'] === '') {
