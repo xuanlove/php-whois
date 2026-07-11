@@ -1223,95 +1223,148 @@
             }
 
             // 从 WHOIS 原始文本提取结构化字段
-            // 兼容多种 WHOIS 服务器格式（Verisign、CNNIC、PIR 等）
+            // 兼容多种 WHOIS 服务器格式：
+            //   - Verisign/CNNIC/PIR 标准 "Key: Value" 格式
+            //   - .ru TCI 小写键 "domain:" "nserver:" "created:" "paid-till:" "state:"
+            //   - .jp JPRS 方括号 "[Domain Name]" "[登録年月日]" 格式
+            //   - .kr KISA "Key :" 冒号前空格 + 韩文/英文双语（优先英文段）
+            //   - .tw TWNIC "Record expires on" 缩进多行格式
             function parseWhoisText(text) {
-                if (!text || typeof text !== 'string') return {};
+                if (!text || typeof text !== 'string') return { fields: {}, rawDates: {} };
+
+                // .kr 含韩文+英文双段，优先英文段（# ENGLISH 之后）
+                const englishSplit = text.split(/#\s*ENGLISH/i);
+                if (englishSplit.length > 1) text = englishSplit[englishSplit.length - 1];
+
                 const result = {};
                 const rawDates = {};
-
-                // 按行解析键值对（兼容 "Key: Value" 与 "Key........Value" 格式）
+                const multiValues = { status: [], nameServers: [] };
                 const lines = text.split(/\r?\n/);
-                const multiValueKeys = ['name server', 'nserver', 'name servers', 'domain status', 'status'];
-                const multiValues = {};
+                let inNsSection = false; // .tw/.kr 多行 NS 区段
 
-                lines.forEach(function (line) {
-                    // 跳过注释行、空行、分隔符
-                    if (!line || /^\s*(%|#|>>>|---|=====)/.test(line)) return;
-                    // 匹配 "Key: Value" 或 "Key......Value"
-                    const m = line.match(/^\s*([A-Za-z][A-Za-z\s]{0,40}?)\s*[:.]\s*(.+?)\s*$/);
-                    if (!m) return;
-                    let key = m[1].toLowerCase().trim();
-                    let val = m[2].trim();
+                // 规范化日期为可被 new Date() 解析的格式
+                function normalizeDate(val) {
+                    if (!val) return '';
+                    let s = val.trim();
+                    s = s.replace(/\s*\(.*?\)\s*/g, ' ').trim(); // 去时区标注 (JST)(UTC+8)
+                    s = s.replace(/(\d{4})\/(\d{1,2})\/(\d{1,2})/, '$1-$2-$3'); // .jp 2001/02/02
+                    s = s.replace(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\./, '$1-$2-$3'); // .kr 2007. 08. 21.
+                    s = s.replace(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/, '$1T$2'); // .cn 补 T
+                    return s;
+                }
 
-                    // 域名
-                    if (key === 'domain name' || key === 'domain') {
-                        if (!result.domainName) result.domainName = val;
-                    }
-                    // 注册局域名 ID
-                    else if (key === 'registry domain id' || key === 'domain id') {
-                        if (!result.registryDomainId) result.registryDomainId = val;
-                    }
-                    // 注册商
-                    else if (key === 'registrar' || key === 'registration service provider') {
-                        if (!result.registrar) result.registrar = val;
-                    }
-                    // IANA ID
-                    else if (key === 'registrar iana id' || key === 'iana id') {
-                        if (!result.ianaId) result.ianaId = val;
-                    }
-                    // 创建日期
-                    else if (key === 'creation date' || key === 'created' || key === 'created date' || key === 'registration time' || key === 'registered on') {
-                        if (!rawDates.creationDate) { rawDates.creationDate = val; result.creationDate = val; }
-                    }
-                    // 过期日期
-                    else if (key === 'registry expiry date' || key === 'expiry date' || key === 'expiration date' || key === 'expire' || key === 'expires on' || key === 'paid-till') {
-                        if (!rawDates.expiryDate) { rawDates.expiryDate = val; result.expiryDate = val; }
-                    }
-                    // 更新日期
-                    else if (key === 'updated date' || key === 'last updated' || key === 'last modified' || key === 'changed') {
-                        if (!rawDates.updatedDate) { rawDates.updatedDate = val; result.updatedDate = val; }
-                    }
-                    // 状态（多值）
-                    else if (multiValueKeys.indexOf(key) !== -1) {
-                        if (key === 'domain status' || key === 'status') {
-                            if (!multiValues.status) multiValues.status = [];
-                            // 去掉 URL 部分（如 "clientTransferProhibited https://..."）
-                            const statusVal = val.split(/\s+/)[0];
-                            if (multiValues.status.indexOf(statusVal) === -1) multiValues.status.push(statusVal);
-                        } else {
-                            if (!multiValues.nameServers) multiValues.nameServers = [];
-                            if (multiValues.nameServers.indexOf(val) === -1) multiValues.nameServers.push(val);
+                function setField(field, val) {
+                    if (field === 'creationDate' || field === 'expiryDate' || field === 'updatedDate') {
+                        if (!rawDates[field]) {
+                            const norm = normalizeDate(val);
+                            rawDates[field] = norm;
+                            result[field] = norm;
                         }
+                    } else if (!result[field]) {
+                        result[field] = val;
                     }
-                    // DNSSEC
-                    else if (key === 'dnssec') {
+                }
+                function addStatus(val) {
+                    // .ru state 含逗号分隔多状态；去 URL 部分
+                    val.split(/[,，]/).forEach(function (s) {
+                        s = s.trim().split(/\s+/)[0];
+                        if (s && multiValues.status.indexOf(s) === -1) multiValues.status.push(s);
+                    });
+                }
+                function addNs(val) {
+                    val = val.trim().replace(/\.$/, ''); // .ru NS 末尾带点
+                    if (val && multiValues.nameServers.indexOf(val) === -1) multiValues.nameServers.push(val);
+                }
+
+                // 统一键名映射（兼容多语言键名）
+                function parseKey(rawKey, val) {
+                    const key = rawKey.toLowerCase().trim().replace(/\s+/g, ' ');
+                    const v = val.trim();
+
+                    if (key === 'domain name' || key === 'domain' || key === 'query') {
+                        setField('domainName', v);
+                    } else if (key === 'registry domain id' || key === 'domain id' || key === 'roid') {
+                        setField('registryDomainId', v);
+                    } else if (key === 'registrar' || key === 'sponsoring registrar' || key === 'registration service provider' || key === 'authorized agency' || key === '등록대행자') {
+                        setField('registrar', v);
+                    } else if (key === 'registrar iana id' || key === 'iana id') {
+                        setField('ianaId', v);
+                    } else if (key === 'creation date' || key === 'created' || key === 'created date' || key === 'registration time' || key === 'registered on' || key === 'registered date' || key === '등록일' || key === 'record created on' || key === '登録年月日') {
+                        setField('creationDate', v);
+                    } else if (key === 'registry expiry date' || key === 'expiry date' || key === 'expiration date' || key === 'expire' || key === 'expires on' || key === 'paid-till' || key === 'expiration time' || key === '사용 종료일' || key === 'record expires on' || key === '有効期限') {
+                        setField('expiryDate', v);
+                    } else if (key === 'updated date' || key === 'last updated' || key === 'last modified' || key === 'changed' || key === 'last updated date' || key === '최근 정보 변경일' || key === '最終更新' || key === 'last updated on') {
+                        setField('updatedDate', v);
+                    } else if (key === 'domain status' || key === 'status' || key === 'state' || key === '상태' || key === '등록정보 보호' || key === 'ロック状態' || key === '状態') {
+                        addStatus(v);
+                    } else if (key === 'name server' || key === 'nserver' || key === 'name servers' || key === 'host name') {
+                        addNs(v);
+                    } else if (key === 'dnssec') {
                         if (!result.dnssec) {
-                            const signed = val.toLowerCase() === 'signed' || val.toLowerCase() === 'yes' || val.indexOf('1') !== -1;
+                            const lower = v.toLowerCase();
+                            const signed = lower === 'signed' || lower === 'yes' || lower.indexOf('1') !== -1 || lower === '서명됨';
                             const k = signed ? 'dnssecSigned' : 'dnssecUnsigned';
                             result.dnssec = '<span data-i18n="' + k + '">' + i18next.t(k, { defaultValue: signed ? '已签名' : '未签名' }) + '</span>';
+                        }
+                    } else if (key === 'registrant' || key === 'registrant name' || key === '등록인') {
+                        setField('registrant', v);
+                    } else if (key === 'registrant contact email' || key === 'ac e-mail' || key === '책임자 전자우편') {
+                        setField('registrantEmail', v);
+                    }
+                }
+
+                lines.forEach(function (line) {
+                    const trimmed = line.trim();
+                    if (!trimmed) return;
+                    // 跳过注释行
+                    if (/^(%|#|>>>|---|=====|\[ *JPRS)/.test(trimmed)) return;
+
+                    // .jp 方括号格式 [Key] Value 或 [日本語キー] Value
+                    let m = trimmed.match(/^\[([^\]]+)\]\s*(.+)$/);
+                    if (m) { parseKey(m[1], m[2]); return; }
+
+                    // .tw: "Record expires on DATE" / "Record created on DATE"（优先于标准键值匹配）
+                    m = trimmed.match(/^Record\s+(expires|created)\s+on\s+(.+)$/i);
+                    if (m) {
+                        setField(m[1].toLowerCase() === 'expires' ? 'expiryDate' : 'creationDate', m[2]);
+                        return;
+                    }
+
+                    // 标准 "Key: Value" 或 "Key : Value"（冒号前可有空格，.kr 格式）
+                    m = trimmed.match(/^(.{1,45}?)\s*[:]\s*(.+)$/);
+                    if (m) { inNsSection = false; parseKey(m[1], m[2]); return; }
+
+                    // .tw: "Domain servers in listed order:" 进入 NS 区段
+                    if (/domain servers/i.test(trimmed)) { inNsSection = true; return; }
+                    // .kr: "Primary Name Server" / "Secondary Name Server" 进入 NS 区段
+                    if (/^(primary|secondary)\s+name\s+server/i.test(trimmed)) { inNsSection = true; return; }
+
+                    // NS 区段内的裸主机名行（.tw）或 "Host Name : xxx"（.kr）
+                    if (inNsSection) {
+                        m = trimmed.match(/^Host\s+Name\s*[:]\s*(.+)$/i);
+                        if (m) { addNs(m[1]); return; }
+                        // .tw 裸主机名（无键，纯域名行）
+                        if (/^[a-z0-9.\-]+\.[a-z]{2,}/i.test(trimmed) && trimmed.indexOf(' ') === -1) {
+                            addNs(trimmed);
+                            return;
                         }
                     }
                 });
 
                 // 合并多值字段
-                if (multiValues.status && multiValues.status.length) {
+                if (multiValues.status.length) {
                     result.status = multiValues.status.map(escapeHtml).join('<br>');
                 }
-                if (multiValues.nameServers && multiValues.nameServers.length) {
+                if (multiValues.nameServers.length) {
                     result.nameServers = multiValues.nameServers.map(escapeHtml).join('<br>');
                 }
 
-                // 转义所有字符串值
-                ['domainName', 'registryDomainId', 'registrar', 'ianaId', 'creationDate', 'expiryDate', 'updatedDate'].forEach(function (k) {
-                    if (result[k]) {
-                        if (k === 'creationDate' || k === 'expiryDate' || k === 'updatedDate') {
-                            result[k] = formatDate(result[k]);
-                            // 保留原始日期用于时间跨度计算
-                            if (k === 'creationDate') rawDates.creationDate = rawDates.creationDate;
-                        } else {
-                            result[k] = escapeHtml(result[k]);
-                        }
-                    }
+                // 转义字符串值 + 日期格式化
+                ['domainName', 'registryDomainId', 'registrar', 'ianaId', 'registrant', 'registrantEmail'].forEach(function (k) {
+                    if (result[k]) result[k] = escapeHtml(result[k]);
+                });
+                ['creationDate', 'expiryDate', 'updatedDate'].forEach(function (k) {
+                    if (result[k]) result[k] = formatDate(result[k]);
                 });
 
                 return { fields: result, rawDates: rawDates };
@@ -1329,7 +1382,7 @@
                 // 按固定顺序构建显示字段（与 RDAP 一致）
                 const fieldOrder = ['domainName', 'registrar', 'ianaId', 'registryDomainId',
                     'creationDate', 'expiryDate', 'updatedDate', 'status',
-                    'nameServers', 'dnssec'];
+                    'nameServers', 'dnssec', 'registrant', 'registrantEmail'];
                 const info = {};
                 fieldOrder.forEach(function (key) {
                     if (temp[key]) info[key] = temp[key];
