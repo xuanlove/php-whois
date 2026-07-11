@@ -159,6 +159,12 @@
             .sm\:mb-6 { margin-bottom: 1.5rem; }
         }
 
+        /* 响应式 lg: 前缀（>=1024px）—— 最近查询侧栏仅在大屏显示，手机/平板用浮动按钮+抽屉 */
+        @media (min-width: 1024px) {
+            .lg\:flex { display: flex; }
+            .lg\:hidden { display: none; }
+        }
+
         /* ===== 主题变量（商业蓝灰色调） ===== */
         :root {
             --bg-base: #1e3a5f;
@@ -725,7 +731,7 @@
             width: 100%;
         }
 
-        @media (max-width: 639px) {
+        @media (max-width: 1023px) {
             .main-content {
                 padding: 12px;
                 gap: 0;
@@ -782,7 +788,7 @@
             transform: scale(0.92);
         }
 
-        @media (max-width: 639px) {
+        @media (max-width: 1023px) {
             .fab-history { display: inline-flex; }
         }
 
@@ -894,8 +900,8 @@
                 </div>
             </div>
 
-            <!-- 历史记录面板（桌面） -->
-            <aside id="history" class="glass history-panel hidden sm:flex">
+            <!-- 历史记录面板（桌面，≥1024px） -->
+            <aside id="history" class="glass history-panel hidden lg:flex">
                 <div class="p-5 pb-3 flex-shrink-0">
                     <h2 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
                         <svg class="w-4 h-4" style="color: var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -921,8 +927,8 @@
     <!-- 移动端历史抽屉遮罩 -->
     <div id="drawerOverlay" class="drawer-overlay"></div>
 
-    <!-- 历史记录抽屉（移动端） -->
-    <div id="historyDrawer" class="history-drawer sm:hidden">
+    <!-- 历史记录抽屉（移动端 / 平板，<1024px） -->
+    <div id="historyDrawer" class="history-drawer lg:hidden">
         <div class="drawer-handle"></div>
         <div class="flex items-center justify-between px-5 pb-3 flex-shrink-0">
             <h2 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
