@@ -159,12 +159,6 @@
             .sm\:mb-6 { margin-bottom: 1.5rem; }
         }
 
-        /* 响应式 lg: 前缀（>=1024px）—— 最近查询侧栏仅在大屏显示，手机/平板用浮动按钮+抽屉 */
-        @media (min-width: 1024px) {
-            .lg\:flex { display: flex; }
-            .lg\:hidden { display: none; }
-        }
-
         /* ===== 主题变量（商业蓝灰色调） ===== */
         :root {
             --bg-base: #1e3a5f;
@@ -723,22 +717,16 @@
         .main-content {
             flex: 1;
             overflow: hidden;
-            padding: 16px;
+            padding: 12px;
             display: flex;
-            gap: 16px;
             max-width: 1200px;
             margin: 0 auto;
             width: 100%;
         }
 
-        @media (max-width: 1023px) {
-            .main-content {
-                padding: 12px;
-                gap: 0;
-            }
-            .result-container {
-                padding-bottom: 80px;
-            }
+        /* 浮动按钮常驻，结果区底部留白避免被遮挡 */
+        .result-container {
+            padding-bottom: 80px;
         }
 
         .query-panel {
@@ -755,16 +743,7 @@
             }
         }
 
-        .history-panel {
-            width: 280px;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border-radius: 24px;
-        }
-
-        /* 圆形浮动按钮（移动端历史） */
+        /* 圆形浮动按钮（历史记录，所有设备） */
         .fab-history {
             position: fixed;
             bottom: 20px;
@@ -776,7 +755,7 @@
             color: #fff;
             border: none;
             cursor: pointer;
-            display: none;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
@@ -786,10 +765,6 @@
 
         .fab-history:active {
             transform: scale(0.92);
-        }
-
-        @media (max-width: 1023px) {
-            .fab-history { display: inline-flex; }
         }
 
         /* 遮罩层 */
@@ -900,35 +875,22 @@
                 </div>
             </div>
 
-            <!-- 历史记录面板（桌面，≥1024px） -->
-            <aside id="history" class="glass history-panel hidden lg:flex">
-                <div class="p-5 pb-3 flex-shrink-0">
-                    <h2 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
-                        <svg class="w-4 h-4" style="color: var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span data-i18n="recentSearches">最近查询</span>
-                    </h2>
-                </div>
-                <div class="flex-1 overflow-y-auto scroll-area px-4 pb-4">
-                    <ul id="history-list" class="space-y-2"></ul>
-                </div>
-            </aside>
+            <!-- 历史记录侧栏已移除，所有设备统一使用右下角浮动按钮 + 底部抽屉 -->
         </div>
     </div>
 
-    <!-- 移动端浮动按钮 -->
+    <!-- 历史记录浮动按钮（所有设备） -->
     <button type="button" id="fabHistory" class="fab-history" title="历史记录">
         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
     </button>
 
-    <!-- 移动端历史抽屉遮罩 -->
+    <!-- 历史抽屉遮罩 -->
     <div id="drawerOverlay" class="drawer-overlay"></div>
 
-    <!-- 历史记录抽屉（移动端 / 平板，<1024px） -->
-    <div id="historyDrawer" class="history-drawer lg:hidden">
+    <!-- 历史记录抽屉（所有设备） -->
+    <div id="historyDrawer" class="history-drawer">
         <div class="drawer-handle"></div>
         <div class="flex items-center justify-between px-5 pb-3 flex-shrink-0">
             <h2 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
@@ -944,7 +906,7 @@
             </button>
         </div>
         <div class="flex-1 overflow-y-auto scroll-area px-4 pb-6" style="max-height: 55vh;">
-            <ul id="history-list-mobile" class="space-y-2"></ul>
+            <ul id="history-list" class="space-y-2"></ul>
         </div>
     </div>
 
@@ -967,7 +929,6 @@
             const importantInfo = $('#importantInfo');
             const originalInfo = $('#originalInfo');
             const historyList = $('#history-list');
-            const historyListMobile = $('#history-list-mobile');
             const clearInputBtn = $('#clear-input');
             const historyDrawer = $('#historyDrawer');
             const drawerOverlay = $('#drawerOverlay');
@@ -1946,7 +1907,6 @@
                     `).join('')
                     : `<li class="text-sm text-center py-8" style="color: var(--text-muted);" data-i18n="noHistory">暂无历史查询记录</li>`;
                 historyList.innerHTML = historyHtml;
-                historyListMobile.innerHTML = historyHtml;
             }
 
             function updateButtonState(isLoading) {
