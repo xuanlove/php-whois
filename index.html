@@ -10,141 +10,445 @@
     <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/dom-to-image/2.6.0/dom-to-image.min.js"></script>
     <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/clipboard.js/2.0.10/clipboard.min.js"></script>
     <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/i18next/21.6.12/i18next.min.js"></script>
-    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery-i18next/1.2.1/jquery-i18next.min.js"></script>
     <style>
+        /* ===== 主题变量 ===== */
+        :root {
+            --bg-app: #f1f5f9;
+            --bg-gradient-1: #e0e7ff;
+            --bg-gradient-2: #f1f5f9;
+            --bg-gradient-3: #fae8ff;
+            --card-bg: rgba(255, 255, 255, 0.75);
+            --card-border: rgba(226, 232, 240, 0.8);
+            --card-shadow: 0 8px 32px rgba(99, 102, 241, 0.08);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --accent-light: rgba(99, 102, 241, 0.1);
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --input-bg: rgba(255, 255, 255, 0.9);
+            --input-border: #e2e8f0;
+            --input-focus-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+            --secondary-card-bg: rgba(248, 250, 252, 0.8);
+            --secondary-card-border: rgba(226, 232, 240, 0.6);
+            --tag-bg: rgba(99, 102, 241, 0.08);
+            --tag-text: #4f46e5;
+            --divider: rgba(226, 232, 240, 0.8);
+            --scrollbar-thumb: #cbd5e1;
+            --scrollbar-track: transparent;
+            --overlay: rgba(15, 23, 42, 0.4);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        html.dark {
+            --bg-app: #0f172a;
+            --bg-gradient-1: #1e1b4b;
+            --bg-gradient-2: #0f172a;
+            --bg-gradient-3: #312e81;
+            --card-bg: rgba(30, 41, 59, 0.75);
+            --card-border: rgba(51, 65, 85, 0.5);
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --accent: #818cf8;
+            --accent-hover: #6366f1;
+            --accent-light: rgba(129, 140, 248, 0.15);
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --input-bg: rgba(15, 23, 42, 0.6);
+            --input-border: #334155;
+            --input-focus-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
+            --secondary-card-bg: rgba(15, 23, 42, 0.5);
+            --secondary-card-border: rgba(51, 65, 85, 0.4);
+            --tag-bg: rgba(129, 140, 248, 0.15);
+            --tag-text: #a5b4fc;
+            --divider: rgba(51, 65, 85, 0.5);
+            --scrollbar-thumb: #475569;
+            --scrollbar-track: transparent;
+            --overlay: rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         html,
         body {
             height: 100%;
             overflow: hidden;
         }
 
-        @keyframes rotate {
-            100% {
+        body {
+            background: var(--bg-app);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* ===== 背景装饰 ===== */
+        .app-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 0%, var(--bg-gradient-1), transparent),
+                radial-gradient(ellipse 60% 50% at 80% 100%, var(--bg-gradient-3), transparent),
+                var(--bg-gradient-2);
+        }
+
+        html.dark .app-bg {
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 0%, var(--bg-gradient-1), transparent),
+                radial-gradient(ellipse 60% 50% at 80% 100%, var(--bg-gradient-3), transparent),
+                var(--bg-gradient-2);
+        }
+
+        /* ===== 玻璃态卡片 ===== */
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: var(--card-shadow);
+        }
+
+        /* ===== 现代输入框 ===== */
+        .modern-input {
+            background: var(--input-bg);
+            border: 1.5px solid var(--input-border);
+            color: var(--text-primary);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .modern-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .modern-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: var(--input-focus-shadow);
+        }
+
+        /* ===== 渐变按钮 ===== */
+        .gradient-btn {
+            background: var(--accent-gradient);
+            color: #fff;
+            transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+        }
+
+        .gradient-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .gradient-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .gradient-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* ===== 图标按钮 ===== */
+        .icon-btn {
+            color: var(--text-secondary);
+            transition: color 0.2s, background 0.2s;
+            border-radius: 10px;
+        }
+
+        .icon-btn:hover {
+            color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        /* ===== 信息卡片 ===== */
+        .info-card {
+            background: var(--secondary-card-bg);
+            border: 1px solid var(--secondary-card-border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* ===== 字段行 ===== */
+        .field-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            transition: background 0.2s;
+        }
+
+        .field-row:hover {
+            background: var(--accent-light);
+        }
+
+        @media (min-width: 640px) {
+            .field-row {
+                flex-direction: row;
+                align-items: center;
+                gap: 12px;
+            }
+        }
+
+        .field-label {
+            display: inline-flex;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--tag-text);
+            background: var(--tag-bg);
+            padding: 4px 10px;
+            border-radius: 8px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            align-self: flex-start;
+        }
+
+        @media (min-width: 640px) {
+            .field-label {
+                min-width: 120px;
+                justify-content: center;
+                align-self: center;
+            }
+        }
+
+        .field-value {
+            color: var(--text-primary);
+            word-break: break-all;
+            font-size: 14px;
+            line-height: 1.6;
+            flex: 1;
+        }
+
+        /* ===== 标签徽章 ===== */
+        .time-badge {
+            display: inline-flex;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .time-badge.green {
+            background: var(--success);
+        }
+
+        .time-badge.blue {
+            background: var(--accent);
+        }
+
+        /* ===== 历史项 ===== */
+        .history-item {
+            background: var(--secondary-card-bg);
+            border: 1px solid var(--secondary-card-border);
+            padding: 10px 12px;
+            border-radius: 12px;
+            transition: transform 0.15s, border-color 0.2s;
+        }
+
+        .history-item:hover {
+            transform: translateX(2px);
+            border-color: var(--accent);
+        }
+
+        /* ===== TLD 项 ===== */
+        .tld-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--secondary-card-bg);
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .tld-item:hover {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            transform: translateX(2px);
+        }
+
+        /* ===== 滚动条 ===== */
+        .scroll-area {
+            scrollbar-width: thin;
+            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+        }
+
+        .scroll-area::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .scroll-area::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+        }
+
+        .scroll-area::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 10px;
+        }
+
+        .scroll-area::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        /* ===== 加载动画 ===== */
+        @keyframes spin {
+            to {
                 transform: rotate(360deg);
             }
         }
 
         .loading-spinner {
-            animation: rotate 1.5s linear infinite;
+            animation: spin 0.8s linear infinite;
         }
 
-        .result-container {
-            scrollbar-width: thin;
-            scrollbar-color: #4B5563 #E5E7EB;
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .result-container::-webkit-scrollbar {
-            width: 12px;
+        .fade-in {
+            animation: fadeInUp 0.3s ease-out;
         }
 
-        .result-container::-webkit-scrollbar-track {
-            background: #E5E7EB;
-        }
-
-        .result-container::-webkit-scrollbar-thumb {
-            background-color: #4B5563;
-            border-radius: 20px;
-            border: 3px solid #E5E7EB;
-        }
-
-        .history-card {
-            width: 300px;
-            max-height: 800px;
-            flex-direction: column;
-        }
-
-        .history-card>div {
-            scrollbar-width: thin;
-            scrollbar-color: #4B5563 #E5E7EB;
-        }
-
-        .history-card>div::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .history-card>div::-webkit-scrollbar-track {
-            background: #E5E7EB;
-        }
-
-        .history-card>div::-webkit-scrollbar-thumb {
-            background-color: #4B5563;
-            border-radius: 20px;
-            border: 2px solid #E5E7EB;
-        }
-
-        .watermark {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            font-size: 12px;
-            color: rgba(0, 0, 0, 0.5);
+        /* ===== Toast ===== */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--text-primary);
+            color: var(--bg-app);
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 100;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
             pointer-events: none;
         }
 
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #4B5563;
-            /* Tailwind's gray-600 */
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            opacity: 0;
-            transition: opacity 0.3s;
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
         }
 
-        .language-switcher {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-
-        .tld-modal-overlay {
+        /* ===== 模态框 ===== */
+        .modal-overlay {
             position: fixed;
             inset: 0;
-            background-color: rgba(0, 0, 0, 0.5);
+            background: var(--overlay);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 50;
+            animation: fadeInUp 0.2s ease-out;
         }
 
-        .tld-modal {
-            background-color: #fff;
+        .modal-box {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             width: 90%;
             max-width: 560px;
             max-height: 80vh;
-            border-radius: 8px;
+            border-radius: 20px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
         }
 
-        .tld-list {
-            scrollbar-width: thin;
-            scrollbar-color: #4B5563 #E5E7EB;
+        /* ===== 移动端历史抽屉 ===== */
+        .history-drawer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 70vh;
+            background: var(--card-bg);
+            border-top: 1px solid var(--card-border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px 20px 0 0;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 40;
+            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15);
         }
 
-        .tld-list::-webkit-scrollbar {
-            width: 8px;
+        .history-drawer.open {
+            transform: translateY(0);
         }
 
-        .tld-list::-webkit-scrollbar-track {
-            background: #E5E7EB;
-        }
-
-        .tld-list::-webkit-scrollbar-thumb {
-            background-color: #4B5563;
-            border-radius: 20px;
-            border: 2px solid #E5E7EB;
+        .drawer-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--text-muted);
+            border-radius: 2px;
+            margin: 10px auto;
+            opacity: 0.5;
         }
 
         @media (max-width: 640px) {
             .result-container {
-                padding-bottom: 65px;
+                padding-bottom: 72px;
             }
+        }
+
+        /* ===== 链接 ===== */
+        .link-btn {
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .link-btn:hover {
+            color: var(--accent-hover);
+        }
+
+        /* ===== JSON 代码块 ===== */
+        .json-block {
+            background: var(--secondary-card-bg);
+            border: 1px solid var(--secondary-card-border);
+            border-radius: 12px;
+            padding: 14px;
+            font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
         }
     </style>
     <!-- by: danran  -->
@@ -152,85 +456,149 @@
     <!-- date: 2024-09-07  -->
 </head>
 
-<body class="bg-gray-100 flex justify-center p-0 sm:p-4 h-screen">
-    <div class="language-switcher">
-        <select id="languageSelect"
-            class="bg-white border border-gray-300 rounded-md text-gray-700 py-1 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="zh-CN">简体中文</option>
-            <option value="zh-TW">繁體中文</option>
-            <option value="en">English</option>
-            <option value="ru">Русский</option>
-            <option value="es">Español</option>
-        </select>
-    </div>
-    <div class="flex flex-grow max-w-5xl w-full">
-        <div class="bg-white p-2 sm:p-6 md:p-8 rounded-lg shadow-md flex flex-col w-full h-full">
-            <h1 class="text-2xl sm:text-3xl font-bold text-left sm:text-center mb-4 sm:mb-6 text-gray-800"
-                data-i18n="title">WHOIS 查询</h1>
-            <form id="whois-form" class="mb-4">
-                <div class="flex relative">
-                    <input type="text" id="domain" name="domain" required placeholder="请输入IP或者域名"
-                        data-i18n="[placeholder]inputPlaceholder"
-                        class="flex-grow px-3 py-2 bg-white border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    <button type="button" id="clear-input"
-                        class="absolute right-24 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none mr-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                clip-rule="evenodd" />
+<body>
+    <div class="app-bg"></div>
+
+    <!-- 顶部导航栏 -->
+    <header class="glass-card sticky top-0 z-30 px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: var(--accent-gradient);">
+                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+            </div>
+            <h1 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary);" data-i18n="title">WHOIS 查询</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="button" id="historyToggle" class="icon-btn p-2 sm:hidden" title="历史记录">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+            <button type="button" id="themeToggle" class="icon-btn p-2" title="切换主题">
+                <svg id="themeIconSun" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <svg id="themeIconMoon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+            </button>
+            <select id="languageSelect" class="modern-input text-sm rounded-lg py-1.5 px-2 cursor-pointer">
+                <option value="zh-CN">简体中文</option>
+                <option value="zh-TW">繁體中文</option>
+                <option value="en">English</option>
+                <option value="ru">Русский</option>
+                <option value="es">Español</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex max-w-6xl mx-auto px-0 sm:px-4 py-0 sm:py-6 gap-0 sm:gap-6 h-[calc(100vh-64px)]">
+        <!-- 查询区 -->
+        <div class="glass-card flex flex-col flex-1 w-full rounded-none sm:rounded-2xl overflow-hidden">
+            <div class="p-4 sm:p-6 flex flex-col h-full">
+                <!-- 搜索表单 -->
+                <form id="whois-form" class="mb-4">
+                    <div class="flex relative gap-2">
+                        <div class="flex-1 relative">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" id="domain" name="domain" required placeholder="请输入IP或者域名"
+                                data-i18n="[placeholder]inputPlaceholder"
+                                class="modern-input w-full pl-11 pr-10 py-3 rounded-xl text-sm">
+                            <button type="button" id="clear-input"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 icon-btn p-1 hidden">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <button type="submit" id="submit-btn"
+                            class="gradient-btn flex items-center justify-center px-5 sm:px-6 rounded-xl text-sm font-semibold whitespace-nowrap">
+                            <span data-i18n="search">查询</span>
+                            <svg class="loading-spinner ml-2 h-4 w-4 hidden" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- TLD 按钮 -->
+                <div class="mb-4 flex justify-end">
+                    <button type="button" id="openTldBtn" class="link-btn flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
-                    </button>
-                    <button type="submit" id="submit-btn"
-                        class="flex items-center justify-center w-24 border border-transparent rounded-r-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                        <span data-i18n="search">查询</span>
-                        <svg class="loading-spinner ml-2 h-5 w-5 hidden" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
-                                fill="none"></circle>
-                            <path class="opacity-75" fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                            </path>
-                        </svg>
+                        <span data-i18n="knownTlds">已知域名后缀</span>
                     </button>
                 </div>
-            </form>
-            <div class="mb-4 flex justify-end">
-                <button type="button" id="openTldBtn"
-                    class="text-sm text-indigo-600 hover:text-indigo-800 focus:outline-none"
-                    data-i18n="knownTlds">已知域名后缀</button>
-            </div>
-            <div id="resultDiv" class="hidden flex-grow overflow-hidden">
-                <div class="h-full overflow-y-auto result-container pb-16 sm:pb-0">
-                    <div id="importantInfo"></div>
-                    <div id="originalInfo"></div>
+
+                <!-- 结果区 -->
+                <div id="resultDiv" class="hidden flex-1 overflow-hidden">
+                    <div class="h-full overflow-y-auto scroll-area result-container pb-16 sm:pb-4">
+                        <div id="importantInfo"></div>
+                        <div id="originalInfo" class="mt-4"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div id="history" class="history-card bg-white shadow-md ml-0 sm:ml-4 hidden sm:flex flex-col">
-            <h2 class="text-lg font-semibold p-4 text-gray-800" data-i18n="recentSearches">最近查询</h2>
-            <div class="flex-grow overflow-y-auto px-4 pb-4">
+        <!-- 历史记录（桌面） -->
+        <aside id="history" class="glass-card hidden sm:flex flex-col rounded-2xl overflow-hidden flex-shrink-0" style="width: 280px;">
+            <h2 class="text-base font-semibold px-5 pt-5 pb-3 flex items-center gap-2" style="color: var(--text-primary);">
+                <svg class="w-4 h-4" style="color: var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span data-i18n="recentSearches">最近查询</span>
+            </h2>
+            <div class="flex-1 overflow-y-auto scroll-area px-4 pb-4">
                 <ul id="history-list" class="space-y-2"></ul>
             </div>
+        </aside>
+    </main>
+
+    <!-- 历史记录抽屉（移动端） -->
+    <div id="historyDrawer" class="history-drawer sm:hidden flex flex-col">
+        <div class="drawer-handle"></div>
+        <div class="flex items-center justify-between px-5 pb-3">
+            <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+                <svg class="w-4 h-4" style="color: var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span data-i18n="recentSearches">最近查询</span>
+            </h2>
+            <button type="button" id="closeDrawerBtn" class="icon-btn p-1.5">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto scroll-area px-4 pb-6 max-h-[50vh]">
+            <ul id="history-list-mobile" class="space-y-2"></ul>
         </div>
     </div>
 
-    <div id="tldModal" class="tld-modal-overlay hidden">
-        <div class="tld-modal shadow-xl">
-            <div class="flex justify-between items-center p-4 border-b border-gray-200">
-                <h3 class="text-lg font-bold text-gray-800" data-i18n="knownTlds">已知域名后缀</h3>
-                <button type="button" id="closeTldBtn" class="text-gray-400 hover:text-gray-600 focus:outline-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <!-- TLD 模态框 -->
+    <div id="tldModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="flex justify-between items-center px-5 py-4" style="border-bottom: 1px solid var(--divider);">
+                <h3 class="text-base font-bold" style="color: var(--text-primary);" data-i18n="knownTlds">已知域名后缀</h3>
+                <button type="button" id="closeTldBtn" class="icon-btn p-1.5">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
-            <div class="p-4 border-b border-gray-200">
+            <div class="px-5 py-4" style="border-bottom: 1px solid var(--divider);">
                 <input type="text" id="tldFilter" data-i18n="[placeholder]tldFilterPlaceholder"
                     placeholder="搜索域名后缀或 WHOIS 服务器"
-                    class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                <p id="tldCount" class="text-xs text-gray-500 mt-2"></p>
+                    class="modern-input w-full px-4 py-2.5 rounded-xl text-sm">
+                <p id="tldCount" class="text-xs mt-2" style="color: var(--text-muted);"></p>
             </div>
-            <div id="tldList" class="tld-list flex-grow overflow-y-auto p-4 space-y-1"></div>
+            <div id="tldList" class="scroll-area flex-1 overflow-y-auto p-4 space-y-1.5"></div>
         </div>
     </div>
 
@@ -239,6 +607,7 @@
     <script>
         $(document).ready(function () {
             const HISTORY_KEY = 'whoisHistory';
+            const THEME_KEY = 'whoisTheme';
             const MAX_HISTORY = 500;
 
             let tldMap = null; // 缓存 whois.json 中的 TLD -> WHOIS 服务器映射
@@ -250,14 +619,17 @@
             const $importantInfo = $('#importantInfo');
             const $originalInfo = $('#originalInfo');
             const $historyList = $('#history-list');
+            const $historyListMobile = $('#history-list-mobile');
             const $clearInput = $('#clear-input');
             const $tldModal = $('#tldModal');
             const $tldList = $('#tldList');
             const $tldFilter = $('#tldFilter');
             const $tldCount = $('#tldCount');
+            const $historyDrawer = $('#historyDrawer');
 
             function init() {
                 bindEvents();
+                initTheme();
                 initClipboard();
                 checkUrlForDomain();
                 updateSearchHistory();
@@ -274,6 +646,9 @@
                 $clearInput.on('click', clearInput);
                 $(document).on('keydown', handleGlobalKeydown);
                 $('#languageSelect').on('change', handleLanguageChange);
+                $('#themeToggle').on('click', toggleTheme);
+                $('#historyToggle').on('click', function () { $historyDrawer.addClass('open'); });
+                $('#closeDrawerBtn').on('click', function () { $historyDrawer.removeClass('open'); });
                 $('#openTldBtn').on('click', openTldModal);
                 $('#closeTldBtn').on('click', closeTldModal);
                 $tldFilter.on('input', renderTldList);
@@ -281,6 +656,32 @@
                 $tldModal.on('click', function (e) {
                     if (e.target === this) closeTldModal();
                 });
+            }
+
+            // ===== 暗黑模式 =====
+            function initTheme() {
+                const saved = localStorage.getItem(THEME_KEY);
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const isDark = saved ? saved === 'dark' : prefersDark;
+                applyTheme(isDark);
+            }
+
+            function applyTheme(isDark) {
+                if (isDark) {
+                    $('html').addClass('dark');
+                    $('#themeIconMoon').addClass('hidden');
+                    $('#themeIconSun').removeClass('hidden');
+                } else {
+                    $('html').removeClass('dark');
+                    $('#themeIconMoon').removeClass('hidden');
+                    $('#themeIconSun').addClass('hidden');
+                }
+            }
+
+            function toggleTheme() {
+                const isDark = !$('html').hasClass('dark');
+                applyTheme(isDark);
+                localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
             }
 
             function handleFormSubmit(e) {
@@ -362,16 +763,16 @@
                 $tldCount.text(i18next.t('tldCount', { count: entries.length, total: total }));
 
                 const html = entries.map(function ([tld, server]) {
-                    const serverText = server || i18next.t('notAvailable');
-                    const serverClass = server ? 'text-gray-600' : 'text-gray-400 italic';
+                    const serverText = escapeHtml(server || i18next.t('notAvailable'));
+                    const serverStyle = server ? '' : 'style="color: var(--text-muted); font-style: italic;"';
                     return `
-                        <div class="tld-item flex justify-between items-center bg-gray-50 hover:bg-indigo-50 rounded-md px-3 py-2 cursor-pointer" data-tld="${tld}">
-                            <span class="text-gray-800 font-medium">.${tld}</span>
-                            <span class="text-xs ${serverClass} break-all ml-2 text-right">${serverText}</span>
+                        <div class="tld-item" data-tld="${escapeHtml(tld)}">
+                            <span class="font-medium text-sm" style="color: var(--text-primary);">.${escapeHtml(tld)}</span>
+                            <span class="text-xs break-all ml-2 text-right" style="color: var(--text-secondary);" ${serverStyle}>${serverText}</span>
                         </div>
                     `;
                 }).join('');
-                $tldList.html(html || `<p class="text-sm text-gray-500 text-center" data-i18n="noTldMatch">无匹配的后缀</p>`);
+                $tldList.html(html || `<p class="text-sm text-center" style="color: var(--text-muted);" data-i18n="noTldMatch">无匹配的后缀</p>`);
             }
 
             function handleTldItemClick() {
@@ -385,6 +786,7 @@
             function handleSearchAgain() {
                 const domain = $(this).data('domain');
                 performWhoisLookup(domain);
+                $historyDrawer.removeClass('open');
             }
 
             function performWhoisLookup(domain) {
@@ -414,29 +816,33 @@
                     const { importantInfoHtml, originalInfoHtml } = formatRdapInfo(response.rdap);
                     $importantInfo.html(importantInfoHtml);
                     $originalInfo.html(originalInfoHtml);
-                    $resultDiv.removeClass('hidden');
+                    $resultDiv.removeClass('hidden').addClass('fade-in');
+                    setTimeout(() => $resultDiv.removeClass('fade-in'), 300);
                     updateSearchHistory($domain.val().trim());
                 } else if (response.fallback) {
                     // 该后缀无 RDAP 服务，显示 ICANN 查询链接
                     const fallbackUrl = escapeHtml(response.fallback);
                     const errorMsg = response.error ? escapeHtml(response.error) : '';
                     $importantInfo.html(`
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 mb-4 text-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-yellow-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <p class="text-yellow-800 font-medium mb-1" data-i18n="noRdapService">该后缀暂无 RDAP 查询服务</p>
-                            ${errorMsg ? `<p class="text-sm text-yellow-600 mb-3">${errorMsg}</p>` : '<div class="mb-3"></div>'}
-                            <a href="${fallbackUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm transition-colors duration-200">
+                        <div class="info-card rounded-2xl p-6 sm:p-8 mb-4 text-center fade-in">
+                            <div class="w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: rgba(245, 158, 11, 0.12);">
+                                <svg class="h-7 w-7" style="color: var(--warning);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <p class="font-medium mb-1" style="color: var(--text-primary);" data-i18n="noRdapService">该后缀暂无 RDAP 查询服务</p>
+                            ${errorMsg ? `<p class="text-sm mb-4" style="color: var(--text-muted);">${errorMsg}</p>` : '<div class="mb-4"></div>'}
+                            <a href="${fallbackUrl}" target="_blank" rel="noopener noreferrer" class="gradient-btn inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-medium">
                                 <span data-i18n="icannLookup">前往 ICANN 查询</span>
-                                <svg class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="ml-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
                             </a>
                         </div>
                     `);
                     $originalInfo.html('');
-                    $resultDiv.removeClass('hidden');
+                    $resultDiv.removeClass('hidden').addClass('fade-in');
+                    setTimeout(() => $resultDiv.removeClass('fade-in'), 300);
                     updateSearchHistory($domain.val().trim());
                     updateContent();
                 } else if (response.error) {
@@ -573,20 +979,23 @@
 
                 // 生成重要信息 HTML
                 let importantInfoHtml = `
-                    <div id="importantInfoCard" class="bg-blue-50 rounded-lg p-2 sm:p-4 mb-4 sm:mb-6 relative">
-                        <div class="flex justify-between items-center mb-2 sm:mb-3">
-                            <h3 class="text-lg font-bold text-blue-700" data-i18n="whoisOverview">WHOIS 信息概览</h3>
-                            <button id="saveScreenshot" class="text-blue-600 hover:text-blue-800 focus:outline-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div id="importantInfoCard" class="info-card rounded-2xl p-4 sm:p-6 mb-4 fade-in">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
+                                <span class="w-1 h-5 rounded-full" style="background: var(--accent-gradient);"></span>
+                                <span data-i18n="whoisOverview">WHOIS 信息概览</span>
+                            </h3>
+                            <button id="saveScreenshot" class="icon-btn p-2" title="截图">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                             </button>
                         </div>
-                        <div class="space-y-2">
+                        <div class="space-y-1">
                             ${Object.entries(info).map(([key, value]) => `
-                                <div class="flex flex-col sm:flex-row">
-                                    <span class="text-gray-600 font-semibold sm:w-32 sm:flex-shrink-0 sm:text-right sm:pr-2" data-i18n="${key}">${getLabel(key)}：</span>
-                                    <span class="text-gray-800 break-words sm:flex-grow flex items-center">
+                                <div class="field-row">
+                                    <span class="field-label" data-i18n="${key}">${getLabel(key)}</span>
+                                    <span class="field-value">
                                         ${value}
                                         ${key === 'domainName' ? registrationPeriod : ''}
                                         ${key === 'expiryDate' ? remainingTime : ''}
@@ -600,16 +1009,19 @@
                 // 生成原始 RDAP JSON 信息 HTML
                 const rawJson = escapeHtml(JSON.stringify(rdap, null, 2));
                 let originalInfoHtml = `
-                    <div class="bg-gray-50 rounded-lg p-2 sm:p-4">
-                        <div class="flex justify-between items-center mb-2 sm:mb-3">
-                            <h3 class="text-lg font-bold text-gray-700" data-i18n="originalRdap">RDAP 原始信息</h3>
-                            <button id="copyOriginalInfo" class="text-blue-600 hover:text-blue-800 focus:outline-none" data-clipboard-target="#originalInfoContent">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="info-card rounded-2xl p-4 sm:p-6 fade-in">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
+                                <span class="w-1 h-5 rounded-full" style="background: var(--accent-gradient);"></span>
+                                <span data-i18n="originalRdap">RDAP 原始信息</span>
+                            </h3>
+                            <button id="copyOriginalInfo" class="icon-btn p-2" data-clipboard-target="#originalInfoContent" title="复制">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
                             </button>
                         </div>
-                        <pre id="originalInfoContent" class="whitespace-pre-wrap text-sm break-words">${rawJson}</pre>
+                        <div class="json-block scroll-area" id="originalInfoContent">${rawJson}</div>
                     </div>
                 `;
 
@@ -638,7 +1050,7 @@
                     unit = 'days';
                 }
 
-                return `<span class="inline-flex items-center justify-center text-xs text-white bg-${type === 'remainingTime' ? 'green' : 'blue'}-600 rounded px-1 ml-1 align-middle" style="height: 1.5em; line-height: 1;" data-i18n="${type}" data-time="${time}" data-unit="${unit}"></span>`;
+                return `<span class="time-badge ${type === 'remainingTime' ? 'green' : 'blue'}" data-i18n="${type}" data-time="${time}" data-unit="${unit}"></span>`;
             }
 
             function updateSearchHistory(domain) {
@@ -653,21 +1065,25 @@
             function renderHistory(history) {
                 const historyHtml = history.length
                     ? history.map(item => `
-                        <li class="bg-gray-50 p-2 rounded-md">
-                            <span class="text-xs sm:text-sm text-gray-600 block mb-1">${item}</span>
-                            <button class="search-again text-xs text-indigo-600 hover:text-indigo-800" data-domain="${item}" data-i18n="searchAgain">再次查询</button>
+                        <li class="history-item">
+                            <span class="text-xs sm:text-sm block mb-1.5" style="color: var(--text-secondary);">${escapeHtml(item)}</span>
+                            <button class="search-again link-btn flex items-center gap-1" data-domain="${escapeHtml(item)}">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <span data-i18n="searchAgain">再次查询</span>
+                            </button>
                         </li>
                     `).join('')
-                    : `<li class="text-xs sm:text-sm text-gray-500 text-center" data-i18n="noHistory">暂无历史查询记录</li>`;
+                    : `<li class="text-xs sm:text-sm text-center py-4" style="color: var(--text-muted);" data-i18n="noHistory">暂无历史查询记录</li>`;
                 $historyList.html(historyHtml);
+                $historyListMobile.html(historyHtml);
             }
 
             function updateButtonState(isLoading) {
                 const $submitText = $submitBtn.find('span');
                 const $spinner = $submitBtn.find('svg');
-                $submitBtn.prop('disabled', isLoading)
-                    .toggleClass('bg-indigo-600 hover:bg-indigo-700 text-white', !isLoading)
-                    .toggleClass('bg-gray-300 text-gray-800', isLoading);
+                $submitBtn.prop('disabled', isLoading);
                 $submitText.data('data-i18n', isLoading ? 'searching' : 'search');
                 $spinner.toggleClass('hidden', !isLoading);
             }
@@ -680,15 +1096,24 @@
 
             function showError(message) {
                 $importantInfo.html('');
-                $originalInfo.html(`<p class="text-red-500">${message}</p>`);
+                $originalInfo.html(`
+                    <div class="info-card rounded-2xl p-6 sm:p-8 text-center fade-in">
+                        <div class="w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: rgba(239, 68, 68, 0.12);">
+                            <svg class="h-7 w-7" style="color: var(--danger);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <p class="text-sm" style="color: var(--text-secondary);">${message}</p>
+                    </div>
+                `);
                 $resultDiv.removeClass('hidden');
             }
 
             function showToast(message, duration = 3000) {
                 const toast = $('#toast');
-                toast.text(i18next.t(message)).css('opacity', 1);
+                toast.text(i18next.t(message)).addClass('show');
                 setTimeout(() => {
-                    toast.css('opacity', 0);
+                    toast.removeClass('show');
                 }, duration);
             }
 
@@ -1048,11 +1473,11 @@
                         const time = $this.data('time');
                         const unit = $this.data('unit');
                         $this.html(i18next.t(key, { time: time, unit: i18next.t(unit) }));
-                    } else if (key.includes('[placeholder]')) {
+                    } else if (key && key.includes('[placeholder]')) {
                         // 特殊处理 placeholder 属性
                         const placeholderKey = key.replace('[placeholder]', '');
                         $this.attr('placeholder', i18next.t(placeholderKey));
-                    } else {
+                    } else if (key) {
                         $this.text(i18next.t(key));
                     }
                 });
