@@ -38,6 +38,34 @@ echo json_encode(getRdapRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
 
 // 主查询函数：RDAP 优先 → WHOIS 回退 → ICANN 降级
 // 服务器信息统一从 IANA 根数据库获取（同时含 RDAP 和 WHOIS）
+
+// 构建 WHOIS 失败的错误信息（区分无法到达 / 不可用 / 超时等）
+// whoisError 取值见 whoisSocketQuery 注释
+function buildWhoisErrorDetail($whoisError) {
+    switch ($whoisError) {
+        case 'unreachable':  return 'WHOIS server unreachable (connection timeout)';
+        case 'unavailable':  return 'WHOIS server unavailable (connection refused)';
+        case 'dns_failed':   return 'WHOIS server DNS resolution failed';
+        case 'read_timeout': return 'WHOIS server read timeout (no response)';
+        case 'empty':        return 'WHOIS server returned empty response';
+        default:             return 'WHOIS query failed';
+    }
+}
+
+// 构建最终降级错误信息（综合 RDAP 和 WHOIS 尝试结果）
+function buildErrorMessage($rdapUrl, $whoisServer, $whoisError) {
+    if ($rdapUrl !== null && $whoisServer !== null) {
+        return 'RDAP query failed; ' . buildWhoisErrorDetail($whoisError);
+    }
+    if ($whoisServer !== null) {
+        return buildWhoisErrorDetail($whoisError);
+    }
+    if ($rdapUrl !== null) {
+        return 'RDAP query failed';
+    }
+    return 'No RDAP/WHOIS service available';
+}
+
 function getRdapRecord($input) {
     $domain = normalizeDomain($input);
     if ($domain === '') {
@@ -69,28 +97,22 @@ function getRdapRecord($input) {
     }
 
     // ② WHOIS 回退（TCP 43）
+    $whoisError = null;
     if ($whoisServer !== null) {
-        $whoisText = queryWhois($domain, $whoisServer);
-        if ($whoisText !== null) {
+        $whoisResult = queryWhois($domain, $whoisServer);
+        if ($whoisResult['data'] !== null) {
             return [
                 'domain' => $domain,
-                'whois' => $whoisText,
+                'whois' => $whoisResult['data'],
                 'whois_server' => $whoisServer,
                 'source' => 'whois'
             ];
         }
+        $whoisError = $whoisResult['error'];
     }
 
     // ③ 最终降级：ICANN 查询页（根据已尝试的查询给出准确错误信息）
-    if ($whoisServer !== null && $rdapUrl !== null) {
-        $error = 'RDAP and WHOIS query both failed';
-    } elseif ($whoisServer !== null) {
-        $error = 'WHOIS query failed';
-    } elseif ($rdapUrl !== null) {
-        $error = 'RDAP query failed';
-    } else {
-        $error = 'No RDAP/WHOIS service available';
-    }
+    $error = buildErrorMessage($rdapUrl, $whoisServer, $whoisError);
     return [
         'domain' => $domain,
         'error' => $error,
@@ -279,9 +301,13 @@ function httpGetJson($url) {
 
 // WHOIS 查询（TCP 43 端口）
 // 支持注册局→注册商二次查询（如 .com 的 whois.verisign-grs.com 会指向注册商 WHOIS）
+// 返回 ['data' => string|null, 'error' => string|null]
 function queryWhois($domain, $server) {
-    $raw = whoisSocketQuery($server, $domain);
-    if ($raw === null) return null;
+    $result = whoisSocketQuery($server, $domain);
+    if ($result['data'] === null) {
+        return ['data' => null, 'error' => $result['error']];
+    }
+    $raw = $result['data'];
 
     // 二次查询：注册局响应中常含 "Registrar WHOIS Server:" 指向注册商
     // 注册商 WHOIS 含更详细信息（注册人、联系方式等）
@@ -289,33 +315,56 @@ function queryWhois($domain, $server) {
         $registrarServer = strtolower(trim($m[1]));
         // 避免循环：仅当注册商服务器与注册局不同时二次查询
         if ($registrarServer !== $server) {
-            $registrarRaw = whoisSocketQuery($registrarServer, $domain);
-            if ($registrarRaw !== null) {
-                return $raw . "\n\n===== 注册商 WHOIS (" . $registrarServer . ") =====\n" . $registrarRaw;
+            $regResult = whoisSocketQuery($registrarServer, $domain);
+            if ($regResult['data'] !== null) {
+                $raw .= "\n\n===== 注册商 WHOIS (" . $registrarServer . ") =====\n" . $regResult['data'];
             }
+            // 注册商查询失败不影响注册局结果，仅忽略附加信息
         }
     }
-    return $raw;
+    return ['data' => $raw, 'error' => null];
 }
 
 // 底层 WHOIS socket 查询（TCP 43）
+// 返回 ['data' => string|null, 'error' => string|null]
+//   error 取值：
+//     'unreachable'  连接超时/无法到达（网络不通、防火墙拦截）
+//     'unavailable'  连接被拒绝（服务器未监听 43 端口）
+//     'dns_failed'   域名解析失败（WHOIS 服务器域名无效）
+//     'empty'        连接成功但响应为空（服务器无数据）
+//     'read_timeout' 读取超时（连接成功但无响应）
 function whoisSocketQuery($server, $query) {
     $fp = @fsockopen($server, WHOIS_PORT, $errno, $errstr, WHOIS_TIMEOUT);
-    if (!$fp) return null;
+    if (!$fp) {
+        // 区分错误类型
+        if ($errno === 110 || $errno === 10060 || strpos($errstr, 'timed out') !== false) {
+            return ['data' => null, 'error' => 'unreachable'];
+        }
+        if ($errno === 111 || $errno === 10061 || strpos($errstr, 'refused') !== false) {
+            return ['data' => null, 'error' => 'unavailable'];
+        }
+        if ($errno === 0 && (strpos($errstr, 'getaddrinfo') !== false || strpos($errstr, 'php_network_getaddresses') !== false)) {
+            return ['data' => null, 'error' => 'dns_failed'];
+        }
+        return ['data' => null, 'error' => 'unreachable'];
+    }
     stream_set_timeout($fp, WHOIS_TIMEOUT);
     // 某些服务器要求以 \r\n 结尾
     fputs($fp, $query . "\r\n");
     $resp = '';
+    $timedOut = false;
     while (!feof($fp)) {
         $chunk = fread($fp, 8192);
         if ($chunk === false || $chunk === '') break;
         $resp .= $chunk;
         $info = stream_get_meta_data($fp);
-        if (!empty($info['timed_out'])) break;
+        if (!empty($info['timed_out'])) { $timedOut = true; break; }
     }
     fclose($fp);
-    if ($resp === '') return null;
+    if ($resp === '') {
+        return ['data' => null, 'error' => $timedOut ? 'read_timeout' : 'empty'];
+    }
     // 转换为 UTF-8（WHOIS 响应可能是各种编码）
     $converted = @mb_convert_encoding($resp, 'UTF-8', 'UTF-8, ISO-8859-1, GBK, BIG5, EUC-JP');
-    return $converted !== '' ? $converted : $resp;
+    return ['data' => $converted !== '' ? $converted : $resp, 'error' => null];
 }

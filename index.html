@@ -1131,9 +1131,9 @@
                     updateSearchHistory(domainInput.value.trim());
                     updateContent();
                 } else if (response.fallback) {
-                    // 该后缀无 RDAP 服务，显示 ICANN 查询链接
+                    // RDAP 与 WHOIS 均失败，显示错误详情 + ICANN 查询链接
                     const fallbackUrl = escapeHtml(response.fallback);
-                    const errorMsg = response.error ? escapeHtml(response.error) : '';
+                    const errorDetail = response.error ? translateError(response.error) : '';
                     importantInfo.innerHTML = `
                         <div class="glass-inner rounded-3xl p-6 sm:p-10 mb-4 text-center fade-in">
                             <div class="w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center" style="background: rgba(245, 158, 11, 0.15);">
@@ -1142,7 +1142,7 @@
                                 </svg>
                             </div>
                             <p class="font-semibold mb-2 text-base" style="color: var(--text-primary);" data-i18n="noRdapService">该后缀暂无 RDAP 查询服务</p>
-                            ${errorMsg ? `<p class="text-sm mb-5" style="color: var(--text-muted);">${errorMsg}</p>` : '<div class="mb-5"></div>'}
+                            ${errorDetail ? `<p class="text-sm mb-5" style="color: var(--text-muted);">${errorDetail}</p>` : '<div class="mb-5"></div>'}
                             <a href="${fallbackUrl}" target="_blank" rel="noopener noreferrer" class="btn-gradient inline-flex items-center px-6 py-3 rounded-2xl text-sm font-semibold">
                                 <span data-i18n="icannLookup">前往 ICANN 查询</span>
                                 <svg class="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1158,12 +1158,40 @@
                     updateSearchHistory(domainInput.value.trim());
                     updateContent();
                 } else if (response.error) {
-                    showError(i18next.t('error', { message: escapeHtml(response.error) }));
+                    showError(i18next.t('error', { message: translateError(response.error) }));
                 }
             }
 
             function getLabel(key) {
                 return i18next.t(key, { defaultValue: key });
+            }
+
+            // 将后端英文错误信息翻译为本地化文案
+            // 识别 WHOIS 服务器错误类型：unreachable / unavailable / dns / read_timeout / empty
+            function translateError(errorMsg) {
+                if (!errorMsg) return '';
+                const e = String(errorMsg);
+                // 组合错误优先匹配（RDAP+WHOIS 均失败）
+                if (e.indexOf('RDAP query failed') !== -1 && e.indexOf('WHOIS') !== -1) {
+                    // 提取 WHOIS 具体错误并拼接
+                    const whoisPart = e.split(';')[1] || '';
+                    const t = whoisPart.indexOf('unreachable') !== -1 ? i18next.t('whoisUnreachable')
+                        : whoisPart.indexOf('unavailable') !== -1 ? i18next.t('whoisUnavailable')
+                        : whoisPart.indexOf('DNS resolution') !== -1 ? i18next.t('whoisDnsFailed')
+                        : whoisPart.indexOf('read timeout') !== -1 ? i18next.t('whoisReadTimeout')
+                        : whoisPart.indexOf('empty response') !== -1 ? i18next.t('whoisEmpty')
+                        : '';
+                    return i18next.t('rdapWhoisBothFailed') + (t ? '（' + t + '）' : '');
+                }
+                if (e.indexOf('RDAP query failed') !== -1) return i18next.t('rdapFailed');
+                if (e.indexOf('No RDAP/WHOIS service') !== -1) return i18next.t('noService');
+                // 单独 WHOIS 错误
+                if (e.indexOf('unreachable') !== -1) return i18next.t('whoisUnreachable');
+                if (e.indexOf('unavailable') !== -1) return i18next.t('whoisUnavailable');
+                if (e.indexOf('DNS resolution') !== -1) return i18next.t('whoisDnsFailed');
+                if (e.indexOf('read timeout') !== -1) return i18next.t('whoisReadTimeout');
+                if (e.indexOf('empty response') !== -1) return i18next.t('whoisEmpty');
+                return escapeHtml(e);
             }
 
             // HTML 转义，防止 XSS
@@ -1594,6 +1622,14 @@
                                 'requestFailed': '请求失败: {{status}}',
                                 'originalRdap': 'RDAP 原始信息',
                                 'noRdapService': '查询失败，请通过 ICANN 官方查询',
+                                'whoisUnreachable': 'WHOIS 服务器无法到达（连接超时，可能被防火墙拦截）',
+                                'whoisUnavailable': 'WHOIS 服务器不可用（连接被拒绝，服务未运行）',
+                                'whoisDnsFailed': 'WHOIS 服务器域名解析失败',
+                                'whoisReadTimeout': 'WHOIS 服务器读取超时（连接成功但无响应）',
+                                'whoisEmpty': 'WHOIS 服务器返回空响应',
+                                'rdapWhoisBothFailed': 'RDAP 与 WHOIS 查询均失败',
+                                'rdapFailed': 'RDAP 查询失败',
+                                'noService': '无可用的 RDAP/WHOIS 查询服务',
                                 'icannLookup': '前往 ICANN 查询',
                                 'registryDomainId': '注册局域名 ID',
                                 'ianaId': 'IANA ID',
@@ -1638,6 +1674,14 @@
                                 'requestFailed': '請求失敗: {{status}}',
                                 'originalRdap': 'RDAP 原始資訊',
                                 'noRdapService': '查詢失敗，請通過 ICANN 官方查詢',
+                                'whoisUnreachable': 'WHOIS 伺服器無法到達（連線逾時，可能被防火牆攔截）',
+                                'whoisUnavailable': 'WHOIS 伺服器不可用（連線被拒絕，服務未運行）',
+                                'whoisDnsFailed': 'WHOIS 伺服器網域解析失敗',
+                                'whoisReadTimeout': 'WHOIS 伺服器讀取逾時（連線成功但無回應）',
+                                'whoisEmpty': 'WHOIS 伺服器傳回空回應',
+                                'rdapWhoisBothFailed': 'RDAP 與 WHOIS 查詢均失敗',
+                                'rdapFailed': 'RDAP 查詢失敗',
+                                'noService': '無可用的 RDAP/WHOIS 查詢服務',
                                 'icannLookup': '前往 ICANN 查詢',
                                 'registryDomainId': '註冊局域名 ID',
                                 'ianaId': 'IANA ID',
@@ -1682,6 +1726,14 @@
                                 'requestFailed': 'Request failed: {{status}}',
                                 'originalRdap': 'Original RDAP Information',
                                 'noRdapService': 'Query failed, please use ICANN official lookup',
+                                'whoisUnreachable': 'WHOIS server unreachable (connection timeout, possibly blocked by firewall)',
+                                'whoisUnavailable': 'WHOIS server unavailable (connection refused, service not running)',
+                                'whoisDnsFailed': 'WHOIS server DNS resolution failed',
+                                'whoisReadTimeout': 'WHOIS server read timeout (connected but no response)',
+                                'whoisEmpty': 'WHOIS server returned empty response',
+                                'rdapWhoisBothFailed': 'Both RDAP and WHOIS queries failed',
+                                'rdapFailed': 'RDAP query failed',
+                                'noService': 'No RDAP/WHOIS service available',
                                 'icannLookup': 'Go to ICANN Lookup',
                                 'registryDomainId': 'Registry Domain ID',
                                 'ianaId': 'IANA ID',
@@ -1726,6 +1778,14 @@
                                 'requestFailed': 'Запрос не выполнен: {{status}}',
                                 'originalRdap': 'Оригинальная информация RDAP',
                                 'noRdapService': 'Запрос не удался, используйте официальный поиск ICANN',
+                                'whoisUnreachable': 'WHOIS-сервер недоступен (тайм-аут соединения, возможно заблокирован брандмауэром)',
+                                'whoisUnavailable': 'WHOIS-сервер недоступен (соединение отклонено, служба не запущена)',
+                                'whoisDnsFailed': 'Ошибка DNS-разрешения WHOIS-сервера',
+                                'whoisReadTimeout': 'Тайм-аут чтения WHOIS-сервера (подключено, но нет ответа)',
+                                'whoisEmpty': 'WHOIS-сервер вернул пустой ответ',
+                                'rdapWhoisBothFailed': 'Запросы RDAP и WHOIS завершились неудачей',
+                                'rdapFailed': 'Запрос RDAP не удался',
+                                'noService': 'Служба RDAP/WHOIS недоступна',
                                 'icannLookup': 'Перейти к поиску ICANN',
                                 'registryDomainId': 'ID домена в реестре',
                                 'ianaId': 'IANA ID',
@@ -1770,6 +1830,14 @@
                                 'requestFailed': 'Solicitud fallida: {{status}}',
                                 'originalRdap': 'Información original de RDAP',
                                 'noRdapService': 'Consulta fallida, use la búsqueda oficial de ICANN',
+                                'whoisUnreachable': 'Servidor WHOIS inalcanzable (tiempo de espera agotado, posiblemente bloqueado por firewall)',
+                                'whoisUnavailable': 'Servidor WHOIS no disponible (conexión rechazada, servicio no en ejecución)',
+                                'whoisDnsFailed': 'Error de resolución DNS del servidor WHOIS',
+                                'whoisReadTimeout': 'Tiempo de espera de lectura del servidor WHOIS (conectado pero sin respuesta)',
+                                'whoisEmpty': 'El servidor WHOIS devolvió una respuesta vacía',
+                                'rdapWhoisBothFailed': 'Las consultas RDAP y WHOIS fallaron',
+                                'rdapFailed': 'Consulta RDAP fallida',
+                                'noService': 'No hay servicio RDAP/WHOIS disponible',
                                 'icannLookup': 'Ir a búsqueda ICANN',
                                 'registryDomainId': 'ID de dominio del registro',
                                 'ianaId': 'IANA ID',
