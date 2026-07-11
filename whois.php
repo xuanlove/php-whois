@@ -16,6 +16,25 @@ define('ICANN_LOOKUP', 'https://lookup.icann.org/zh/lookup');
 define('ARIN_RDAP', 'https://rdap.arin.net/registry');
 define('USER_AGENT', 'php-whois/2.0 (RDAP client)');
 
+// 已知 ccTLD RDAP 服务器补充列表（IANA 引导文件未收录但实际提供 RDAP 服务）
+// 优先于 IANA 引导文件使用
+$EXTRA_RDAP_SERVERS = [
+    'cn'       => 'https://rdap.cnnic.cn',
+    'com.cn'   => 'https://rdap.cnnic.cn',
+    'net.cn'   => 'https://rdap.cnnic.cn',
+    'org.cn'   => 'https://rdap.cnnic.cn',
+    'gov.cn'   => 'https://rdap.cnnic.cn',
+    'ac.cn'    => 'https://rdap.cnnic.cn',
+    'bj.cn'    => 'https://rdap.cnnic.cn',
+    'sh.cn'    => 'https://rdap.cnnic.cn',
+    'gd.cn'    => 'https://rdap.cnnic.cn',
+    'zj.cn'    => 'https://rdap.cnnic.cn',
+    'tw'       => 'https://rdap.twnic.tw',
+    'jp'       => 'https://rdap.jprs.jp',
+    'kr'       => 'https://rdap.kisa.or.kr',
+    'ru'       => 'https://rdap.tcinet.ru',
+];
+
 // 入口
 if (!isset($_GET['domain']) || $_GET['domain'] === '') {
     http_response_code(400);
@@ -116,12 +135,18 @@ function getRdapBootstrap() {
 
 // 根据 TLD 查找 RDAP 服务器（多级后缀优先匹配）
 function findRdapServer($domain, $map) {
+    global $EXTRA_RDAP_SERVERS;
     $parts = explode('.', $domain);
     if (count($parts) < 2) return null;
 
     // 从最长后缀逐级退化匹配
     for ($i = 1; $i < count($parts); $i++) {
         $candidate = implode('.', array_slice($parts, $i));
+        // 优先查补充列表（已知 ccTLD）
+        if (isset($EXTRA_RDAP_SERVERS[$candidate])) {
+            return $EXTRA_RDAP_SERVERS[$candidate];
+        }
+        // 再查 IANA 引导文件
         if (isset($map[$candidate])) {
             return $map[$candidate];
         }

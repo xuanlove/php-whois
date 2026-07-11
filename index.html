@@ -820,7 +820,7 @@
             // ===== 暗黑模式 =====
             function initTheme() {
                 const saved = localStorage.getItem(THEME_KEY);
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
                 const isDark = saved ? saved === 'dark' : prefersDark;
                 applyTheme(isDark);
             }
@@ -968,6 +968,8 @@
 
             // 解析 RDAP JSON 响应，生成概览和原始信息 HTML
             function formatRdapInfo(rdap) {
+                // 防止 null/undefined 导致后续属性读取崩溃
+                if (!rdap || typeof rdap !== 'object') rdap = {};
                 const temp = {};
                 const rawDates = {}; // 保存原始日期用于时间跨度计算
 
@@ -1170,7 +1172,9 @@
 
             function updateUrl(domain) {
                 if (domain) {
-                    history.pushState(null, '', '/' + encodeURIComponent(domain));
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('domain', domain);
+                    history.pushState(null, '', url.toString());
                 }
             }
 
@@ -1278,8 +1282,8 @@
             }
 
             function checkUrlForDomain() {
-                const path = window.location.pathname;
-                const domain = decodeURIComponent(path.substring(1));
+                const params = new URLSearchParams(window.location.search);
+                const domain = params.get('domain');
                 if (domain) {
                     domainInput.value = domain;
                     performWhoisLookup(domain);
