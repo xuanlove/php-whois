@@ -74,7 +74,9 @@ function getRdapRecord($input) {
     // ① RDAP 优先
     if ($rdapUrl !== null) {
         $resp = queryDomainRdap($domain, $rdapUrl);
-        if (isset($resp['rdap'])) return $resp;
+        if (isset($resp['rdap'])) {
+            return array_merge($resp, ['rdap_server' => $rdapUrl, 'source' => 'rdap']);
+        }
         // 404 = 域名未注册，属正常业务结果，不再回退
         if (isset($resp['error']) && $resp['error'] === 'Domain not found') return $resp;
         // 其它失败（网络/SSL/服务器异常）→ 继续走 WHOIS 回退
@@ -241,7 +243,7 @@ function queryIpRdap($ip) {
     if ($resp['code'] !== 200) {
         return ['domain' => $ip, 'error' => 'RDAP server returned HTTP ' . $resp['code']];
     }
-    return ['domain' => $ip, 'rdap' => $resp['data']];
+    return ['domain' => $ip, 'rdap' => $resp['data'], 'rdap_server' => ARIN_RDAP, 'source' => 'rdap'];
 }
 
 // HTTP GET（返回原始字符串）
