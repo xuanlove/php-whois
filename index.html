@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="title">WHOIS 查询</title>
     <link rel="stylesheet" href="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/tailwindcss/2.2.19/tailwind.min.css">
-    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/dom-to-image/2.6.0/dom-to-image.min.js"></script>
     <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/clipboard.js/2.0.10/clipboard.min.js"></script>
     <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/i18next/21.6.12/i18next.min.js"></script>
@@ -100,13 +99,6 @@
                 var(--bg-gradient-2);
         }
 
-        html.dark .app-bg {
-            background:
-                radial-gradient(ellipse 80% 50% at 20% 0%, var(--bg-gradient-1), transparent),
-                radial-gradient(ellipse 60% 50% at 80% 100%, var(--bg-gradient-3), transparent),
-                var(--bg-gradient-2);
-        }
-
         /* ===== 玻璃态卡片 ===== */
         .glass-card {
             background: var(--card-bg);
@@ -161,6 +153,9 @@
             color: var(--text-secondary);
             transition: color 0.2s, background 0.2s;
             border-radius: 10px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
         }
 
         .icon-btn:hover {
@@ -263,25 +258,6 @@
             border-color: var(--accent);
         }
 
-        /* ===== TLD 项 ===== */
-        .tld-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--secondary-card-bg);
-            border: 1px solid transparent;
-            border-radius: 10px;
-            padding: 8px 12px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .tld-item:hover {
-            background: var(--accent-light);
-            border-color: var(--accent);
-            transform: translateX(2px);
-        }
-
         /* ===== 滚动条 ===== */
         .scroll-area {
             scrollbar-width: thin;
@@ -357,35 +333,6 @@
             transform: translateX(-50%) translateY(0);
         }
 
-        /* ===== 模态框 ===== */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: var(--overlay);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
-            animation: fadeInUp 0.2s ease-out;
-        }
-
-        .modal-box {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            width: 90%;
-            max-width: 560px;
-            max-height: 80vh;
-            border-radius: 20px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-        }
-
         /* ===== 移动端历史抽屉 ===== */
         .history-drawer {
             position: fixed;
@@ -429,6 +376,9 @@
             font-size: 13px;
             font-weight: 500;
             transition: color 0.2s;
+            background: transparent;
+            border: none;
+            cursor: pointer;
         }
 
         .link-btn:hover {
@@ -526,16 +476,6 @@
                     </div>
                 </form>
 
-                <!-- TLD 按钮 -->
-                <div class="mb-4 flex justify-end">
-                    <button type="button" id="openTldBtn" class="link-btn flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                        <span data-i18n="knownTlds">已知域名后缀</span>
-                    </button>
-                </div>
-
                 <!-- 结果区 -->
                 <div id="resultDiv" class="hidden flex-1 overflow-hidden">
                     <div class="h-full overflow-y-auto scroll-area result-container pb-16 sm:pb-4">
@@ -581,51 +521,28 @@
         </div>
     </div>
 
-    <!-- TLD 模态框 -->
-    <div id="tldModal" class="modal-overlay hidden">
-        <div class="modal-box">
-            <div class="flex justify-between items-center px-5 py-4" style="border-bottom: 1px solid var(--divider);">
-                <h3 class="text-base font-bold" style="color: var(--text-primary);" data-i18n="knownTlds">已知域名后缀</h3>
-                <button type="button" id="closeTldBtn" class="icon-btn p-1.5">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            <div class="px-5 py-4" style="border-bottom: 1px solid var(--divider);">
-                <input type="text" id="tldFilter" data-i18n="[placeholder]tldFilterPlaceholder"
-                    placeholder="搜索域名后缀或 WHOIS 服务器"
-                    class="modern-input w-full px-4 py-2.5 rounded-xl text-sm">
-                <p id="tldCount" class="text-xs mt-2" style="color: var(--text-muted);"></p>
-            </div>
-            <div id="tldList" class="scroll-area flex-1 overflow-y-auto p-4 space-y-1.5"></div>
-        </div>
-    </div>
-
     <div id="toast" class="toast"></div>
 
     <script>
-        $(document).ready(function () {
+        // ===== 原生 JS 工具函数 =====
+        const $ = (sel) => document.querySelector(sel);
+        const $$ = (sel) => document.querySelectorAll(sel);
+
+        document.addEventListener('DOMContentLoaded', function () {
             const HISTORY_KEY = 'whoisHistory';
             const THEME_KEY = 'whoisTheme';
             const MAX_HISTORY = 500;
 
-            let tldMap = null; // 缓存 whois.json 中的 TLD -> WHOIS 服务器映射
-
-            const $form = $('#whois-form');
-            const $domain = $('#domain');
-            const $submitBtn = $('#submit-btn');
-            const $resultDiv = $('#resultDiv');
-            const $importantInfo = $('#importantInfo');
-            const $originalInfo = $('#originalInfo');
-            const $historyList = $('#history-list');
-            const $historyListMobile = $('#history-list-mobile');
-            const $clearInput = $('#clear-input');
-            const $tldModal = $('#tldModal');
-            const $tldList = $('#tldList');
-            const $tldFilter = $('#tldFilter');
-            const $tldCount = $('#tldCount');
-            const $historyDrawer = $('#historyDrawer');
+            const form = $('#whois-form');
+            const domainInput = $('#domain');
+            const submitBtn = $('#submit-btn');
+            const resultDiv = $('#resultDiv');
+            const importantInfo = $('#importantInfo');
+            const originalInfo = $('#originalInfo');
+            const historyList = $('#history-list');
+            const historyListMobile = $('#history-list-mobile');
+            const clearInputBtn = $('#clear-input');
+            const historyDrawer = $('#historyDrawer');
 
             function init() {
                 bindEvents();
@@ -635,27 +552,21 @@
                 updateSearchHistory();
                 toggleClearButton();
                 initI18n();
-                loadTldMap(function () { }); // 后台预加载，供提交时校验后缀使用
             }
 
             function bindEvents() {
-                $form.submit(handleFormSubmit);
-                $(document).on('click', '.search-again', handleSearchAgain);
-                $(document).on('click', '#saveScreenshot', handleSaveScreenshot);
-                $domain.on('input', toggleClearButton);
-                $clearInput.on('click', clearInput);
-                $(document).on('keydown', handleGlobalKeydown);
-                $('#languageSelect').on('change', handleLanguageChange);
-                $('#themeToggle').on('click', toggleTheme);
-                $('#historyToggle').on('click', function () { $historyDrawer.addClass('open'); });
-                $('#closeDrawerBtn').on('click', function () { $historyDrawer.removeClass('open'); });
-                $('#openTldBtn').on('click', openTldModal);
-                $('#closeTldBtn').on('click', closeTldModal);
-                $tldFilter.on('input', renderTldList);
-                $(document).on('click', '.tld-item', handleTldItemClick);
-                $tldModal.on('click', function (e) {
-                    if (e.target === this) closeTldModal();
+                form.addEventListener('submit', handleFormSubmit);
+                document.addEventListener('click', function (e) {
+                    if (e.target.closest('.search-again')) handleSearchAgain(e);
+                    if (e.target.closest('#saveScreenshot')) handleSaveScreenshot();
                 });
+                domainInput.addEventListener('input', toggleClearButton);
+                clearInputBtn.addEventListener('click', clearInput);
+                document.addEventListener('keydown', handleGlobalKeydown);
+                $('#languageSelect').addEventListener('change', handleLanguageChange);
+                $('#themeToggle').addEventListener('click', toggleTheme);
+                $('#historyToggle').addEventListener('click', () => historyDrawer.classList.add('open'));
+                $('#closeDrawerBtn').addEventListener('click', () => historyDrawer.classList.remove('open'));
             }
 
             // ===== 暗黑模式 =====
@@ -667,163 +578,80 @@
             }
 
             function applyTheme(isDark) {
+                const html = document.documentElement;
+                const sunIcon = $('#themeIconSun');
+                const moonIcon = $('#themeIconMoon');
                 if (isDark) {
-                    $('html').addClass('dark');
-                    $('#themeIconMoon').addClass('hidden');
-                    $('#themeIconSun').removeClass('hidden');
+                    html.classList.add('dark');
+                    sunIcon.classList.remove('hidden');
+                    moonIcon.classList.add('hidden');
                 } else {
-                    $('html').removeClass('dark');
-                    $('#themeIconMoon').removeClass('hidden');
-                    $('#themeIconSun').addClass('hidden');
+                    html.classList.remove('dark');
+                    sunIcon.classList.add('hidden');
+                    moonIcon.classList.remove('hidden');
                 }
             }
 
             function toggleTheme() {
-                const isDark = !$('html').hasClass('dark');
+                const isDark = !document.documentElement.classList.contains('dark');
                 applyTheme(isDark);
                 localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
             }
 
             function handleFormSubmit(e) {
                 e.preventDefault();
-                const domain = $domain.val().trim();
+                const domain = domainInput.value.trim();
                 if (!domain) return;
-                // 校验域名后缀是否已知（IP 地址跳过）
-                if (!filter_var_is_ip(domain) && !isKnownTld(domain)) {
-                    showToast('unknownTldWarning');
-                }
                 performWhoisLookup(domain);
             }
 
-            // 模拟 PHP 的 FILTER_VALIDATE_IP
-            function filter_var_is_ip(value) {
-                if (/^\d{1,3}(\.\d{1,3}){3}$/.test(value)) {
-                    return value.split('.').every(n => +n >= 0 && +n <= 255);
-                }
-                // IPv6 简单判断
-                return /^[0-9a-fA-F:]+$/.test(value) && value.includes(':');
-            }
-
-            // 判断域名后缀是否在 whois.json 中已知
-            function isKnownTld(domain) {
-                if (!tldMap) return true; // 数据未加载完成时不拦截
-                const parts = domain.toLowerCase().split('.');
-                if (parts.length < 2) return false;
-                // 优先匹配多级后缀（如 .co.uk 不在表中，则取最后一段）
-                for (let i = 1; i < parts.length; i++) {
-                    const candidate = parts.slice(i).join('.');
-                    if (Object.prototype.hasOwnProperty.call(tldMap, candidate)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-            // 加载 whois.json（带缓存）
-            function loadTldMap(callback) {
-                if (tldMap) {
-                    callback(tldMap);
-                    return;
-                }
-                $.ajax({
-                    url: 'whois.json',
-                    method: 'GET',
-                    dataType: 'json',
-                    success: function (data) {
-                        tldMap = data || {};
-                        callback(tldMap);
-                    },
-                    error: function () {
-                        tldMap = {};
-                        callback(tldMap);
-                    }
-                });
-            }
-
-            function openTldModal() {
-                loadTldMap(function () {
-                    $tldFilter.val('');
-                    renderTldList();
-                    $tldModal.removeClass('hidden');
-                });
-            }
-
-            function closeTldModal() {
-                $tldModal.addClass('hidden');
-            }
-
-            function renderTldList() {
-                const keyword = $tldFilter.val().trim().toLowerCase();
-                const entries = Object.entries(tldMap).filter(function ([tld, server]) {
-                    if (!keyword) return true;
-                    return tld.indexOf(keyword) !== -1 || (server && server.toLowerCase().indexOf(keyword) !== -1);
-                });
-
-                const total = Object.keys(tldMap).length;
-                $tldCount.text(i18next.t('tldCount', { count: entries.length, total: total }));
-
-                const html = entries.map(function ([tld, server]) {
-                    const serverText = escapeHtml(server || i18next.t('notAvailable'));
-                    const serverStyle = server ? '' : 'style="color: var(--text-muted); font-style: italic;"';
-                    return `
-                        <div class="tld-item" data-tld="${escapeHtml(tld)}">
-                            <span class="font-medium text-sm" style="color: var(--text-primary);">.${escapeHtml(tld)}</span>
-                            <span class="text-xs break-all ml-2 text-right" style="color: var(--text-secondary);" ${serverStyle}>${serverText}</span>
-                        </div>
-                    `;
-                }).join('');
-                $tldList.html(html || `<p class="text-sm text-center" style="color: var(--text-muted);" data-i18n="noTldMatch">无匹配的后缀</p>`);
-            }
-
-            function handleTldItemClick() {
-                const tld = $(this).data('tld');
-                $domain.val('example.' + tld);
-                toggleClearButton();
-                closeTldModal();
-                $domain.focus();
-            }
-
-            function handleSearchAgain() {
-                const domain = $(this).data('domain');
+            function handleSearchAgain(e) {
+                const btn = e.target.closest('.search-again');
+                const domain = btn.dataset.domain;
                 performWhoisLookup(domain);
-                $historyDrawer.removeClass('open');
+                historyDrawer.classList.remove('open');
             }
 
             function performWhoisLookup(domain) {
                 updateButtonState(true);
                 updateUrl(domain);
-                $domain.val(domain);
+                domainInput.value = domain;
                 toggleClearButton();
 
-                $.ajax({
-                    url: 'whois.php',
-                    method: 'GET',
-                    data: { domain },
-                    dataType: 'json',
-                    success: function (response) {
-                        handleWhoisResponse(response);
-                    },
-                    error: handleWhoisError,
-                    complete: () => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                fetch('whois.php?domain=' + encodeURIComponent(domain), {
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(res => res.json())
+                    .then(response => handleWhoisResponse(response))
+                    .catch(err => {
+                        const msg = err.name === 'AbortError' ? 'timeout' : err.message;
+                        showError(i18next.t('requestFailed', { status: escapeHtml(msg) }));
+                    })
+                    .finally(() => {
+                        clearTimeout(timeoutId);
                         updateButtonState(false);
                         updateContent();
-                    }
-                });
+                    });
             }
 
             function handleWhoisResponse(response) {
                 if (response.rdap) {
                     const { importantInfoHtml, originalInfoHtml } = formatRdapInfo(response.rdap);
-                    $importantInfo.html(importantInfoHtml);
-                    $originalInfo.html(originalInfoHtml);
-                    $resultDiv.removeClass('hidden').addClass('fade-in');
-                    setTimeout(() => $resultDiv.removeClass('fade-in'), 300);
-                    updateSearchHistory($domain.val().trim());
+                    importantInfo.innerHTML = importantInfoHtml;
+                    originalInfo.innerHTML = originalInfoHtml;
+                    resultDiv.classList.remove('hidden');
+                    resultDiv.classList.add('fade-in');
+                    setTimeout(() => resultDiv.classList.remove('fade-in'), 300);
+                    updateSearchHistory(domainInput.value.trim());
                 } else if (response.fallback) {
                     // 该后缀无 RDAP 服务，显示 ICANN 查询链接
                     const fallbackUrl = escapeHtml(response.fallback);
                     const errorMsg = response.error ? escapeHtml(response.error) : '';
-                    $importantInfo.html(`
+                    importantInfo.innerHTML = `
                         <div class="info-card rounded-2xl p-6 sm:p-8 mb-4 text-center fade-in">
                             <div class="w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: rgba(245, 158, 11, 0.12);">
                                 <svg class="h-7 w-7" style="color: var(--warning);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -839,11 +667,12 @@
                                 </svg>
                             </a>
                         </div>
-                    `);
-                    $originalInfo.html('');
-                    $resultDiv.removeClass('hidden').addClass('fade-in');
-                    setTimeout(() => $resultDiv.removeClass('fade-in'), 300);
-                    updateSearchHistory($domain.val().trim());
+                    `;
+                    originalInfo.innerHTML = '';
+                    resultDiv.classList.remove('hidden');
+                    resultDiv.classList.add('fade-in');
+                    setTimeout(() => resultDiv.classList.remove('fade-in'), 300);
+                    updateSearchHistory(domainInput.value.trim());
                     updateContent();
                 } else if (response.error) {
                     showError(i18next.t('error', { message: escapeHtml(response.error) }));
@@ -852,10 +681,6 @@
 
             function getLabel(key) {
                 return i18next.t(key, { defaultValue: key });
-            }
-
-            function handleWhoisError(jqXHR, textStatus) {
-                showError(i18next.t('requestFailed', { status: escapeHtml(textStatus) }));
             }
 
             // HTML 转义，防止 XSS
@@ -1055,7 +880,7 @@
 
             function updateSearchHistory(domain) {
                 let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-                if (domain?.trim()) {
+                if (domain && domain.trim()) {
                     history = [domain, ...history.filter(item => item !== domain)].slice(0, MAX_HISTORY);
                     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
                 }
@@ -1076,16 +901,21 @@
                         </li>
                     `).join('')
                     : `<li class="text-xs sm:text-sm text-center py-4" style="color: var(--text-muted);" data-i18n="noHistory">暂无历史查询记录</li>`;
-                $historyList.html(historyHtml);
-                $historyListMobile.html(historyHtml);
+                historyList.innerHTML = historyHtml;
+                historyListMobile.innerHTML = historyHtml;
             }
 
             function updateButtonState(isLoading) {
-                const $submitText = $submitBtn.find('span');
-                const $spinner = $submitBtn.find('svg');
-                $submitBtn.prop('disabled', isLoading);
-                $submitText.data('data-i18n', isLoading ? 'searching' : 'search');
-                $spinner.toggleClass('hidden', !isLoading);
+                const submitText = submitBtn.querySelector('span');
+                const spinner = submitBtn.querySelector('svg');
+                submitBtn.disabled = isLoading;
+                if (isLoading) {
+                    submitText.textContent = i18next.t('searching', { defaultValue: '查询中' });
+                    spinner.classList.remove('hidden');
+                } else {
+                    submitText.textContent = i18next.t('search', { defaultValue: '查询' });
+                    spinner.classList.add('hidden');
+                }
             }
 
             function updateUrl(domain) {
@@ -1095,8 +925,8 @@
             }
 
             function showError(message) {
-                $importantInfo.html('');
-                $originalInfo.html(`
+                importantInfo.innerHTML = '';
+                originalInfo.innerHTML = `
                     <div class="info-card rounded-2xl p-6 sm:p-8 text-center fade-in">
                         <div class="w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: rgba(239, 68, 68, 0.12);">
                             <svg class="h-7 w-7" style="color: var(--danger);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1105,22 +935,21 @@
                         </div>
                         <p class="text-sm" style="color: var(--text-secondary);">${message}</p>
                     </div>
-                `);
-                $resultDiv.removeClass('hidden');
+                `;
+                resultDiv.classList.remove('hidden');
             }
 
             function showToast(message, duration = 3000) {
                 const toast = $('#toast');
-                toast.text(i18next.t(message)).addClass('show');
-                setTimeout(() => {
-                    toast.removeClass('show');
-                }, duration);
+                toast.textContent = i18next.t(message);
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), duration);
             }
 
             function initClipboard() {
                 new ClipboardJS('#copyOriginalInfo', {
                     text: function () {
-                        return $('#originalInfoContent').text();
+                        return $('#originalInfoContent').textContent;
                     }
                 }).on('success', function () {
                     showToast('copiedToClipboard');
@@ -1132,19 +961,17 @@
             function handleSaveScreenshot() {
                 const element = document.getElementById('importantInfoCard');
                 const currentDomain = window.location.hostname;
-                const currentQueryDomain = $('#domain').val().trim();
-                const $saveScreenshotBtn = $('#saveScreenshot');
+                const currentQueryDomain = domainInput.value.trim();
+                const saveBtn = $('#saveScreenshot');
 
                 // 临时隐藏截图按钮
-                $saveScreenshotBtn.hide();
+                saveBtn.style.display = 'none';
 
-                // 使用 dom-to-image 进行截图
                 domtoimage.toPng(element, {
                     quality: 1,
                     bgcolor: '#ffffff'
                 })
                     .then(function (dataUrl) {
-                        // 创建一个临时的 canvas 元素来添加水印
                         const img = new Image();
                         img.onload = function () {
                             const canvas = document.createElement('canvas');
@@ -1152,50 +979,46 @@
                             canvas.height = img.height;
                             const ctx = canvas.getContext('2d');
 
-                            // 绘制原始图像
                             ctx.drawImage(img, 0, 0);
 
-                            // 添加水印
                             ctx.font = '12px Arial';
                             ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
                             const watermarkText = '© ' + new Date().getFullYear() + ' ' + currentDomain;
                             const textWidth = ctx.measureText(watermarkText).width;
                             ctx.fillText(watermarkText, canvas.width - textWidth - 10, canvas.height - 10);
 
-                            // 创建下载链接
                             const link = document.createElement('a');
                             link.download = `whois_${currentQueryDomain}.png`;
                             link.href = canvas.toDataURL('image/png');
                             link.click();
 
-                            // 截图完成后显示截图按钮
-                            $saveScreenshotBtn.show();
+                            saveBtn.style.display = '';
                         };
                         img.src = dataUrl;
                     })
                     .catch(function (error) {
                         console.error('截图失败:', error);
                         showToast('screenshotFailed');
-                        // 发生错误时也要显示截图按钮
-                        $saveScreenshotBtn.show();
+                        saveBtn.style.display = '';
                     });
             }
 
             function checkUrlForDomain() {
                 const path = window.location.pathname;
-                const domain = decodeURIComponent(path.substring(1)); // 移除开头的斜杠
+                const domain = decodeURIComponent(path.substring(1));
                 if (domain) {
-                    $domain.val(domain);
+                    domainInput.value = domain;
                     performWhoisLookup(domain);
                 }
             }
 
             function toggleClearButton() {
-                $clearInput.toggle(!!$domain.val());
+                clearInputBtn.classList.toggle('hidden', !domainInput.value);
             }
 
             function clearInput() {
-                $domain.val('').focus();
+                domainInput.value = '';
+                domainInput.focus();
                 toggleClearButton();
             }
 
@@ -1207,11 +1030,11 @@
             }
 
             function initI18n() {
-                const userLang = navigator.language || navigator.userLanguage; // 获取浏览器语言
-                const defaultLang = ['zh-CN', 'zh-TW', 'en', 'ru', 'es'].includes(userLang) ? userLang : 'zh-CN'; // 检查是否支持该语言，不支持则默认 'zh-CN'
+                const userLang = navigator.language || navigator.userLanguage;
+                const defaultLang = ['zh-CN', 'zh-TW', 'en', 'ru', 'es'].includes(userLang) ? userLang : 'zh-CN';
 
                 i18next.init({
-                    lng: defaultLang, // 根据浏览器语言设置默认语言
+                    lng: defaultLang,
                     resources: {
                         'zh-CN': {
                             translation: {
@@ -1223,15 +1046,11 @@
                                 'noHistory': '暂无历史查询记录',
                                 'searchAgain': '再次查询',
                                 'whoisOverview': 'WHOIS 信息概览',
-                                'originalWhois': 'WHOIS 原始信息',
-                                'copyButton': '复制',
-                                'screenshotButton': '截图',
                                 'copiedToClipboard': '原始信息已复制到剪贴板',
                                 'copyFailed': '复制失败，请手动复制',
                                 'screenshotFailed': '截图失败，请稍后重试',
                                 'domainName': '域名',
                                 'registrar': '注册商',
-                                'whoisServer': 'WHOIS 服务器',
                                 'updatedDate': '更新日',
                                 'creationDate': '注册日',
                                 'expiryDate': '过期日',
@@ -1247,12 +1066,6 @@
                                 'registrantEmail': '注册人邮箱',
                                 'error': '错误: {{message}}',
                                 'requestFailed': '请求失败: {{status}}',
-                                'knownTlds': '已知域名后缀',
-                                'tldFilterPlaceholder': '搜索域名后缀或 WHOIS 服务器',
-                                'tldCount': '显示 {{count}} / 共 {{total}} 个',
-                                'notAvailable': '暂无',
-                                'noTldMatch': '无匹配的后缀',
-                                'unknownTldWarning': '未知域名后缀，将尝试通过默认服务器查询',
                                 'originalRdap': 'RDAP 原始信息',
                                 'noRdapService': '该后缀暂无 RDAP 查询服务，请通过 ICANN 官方查询',
                                 'icannLookup': '前往 ICANN 查询',
@@ -1272,15 +1085,11 @@
                                 'noHistory': '暫無歷史查詢記錄',
                                 'searchAgain': '再次查詢',
                                 'whoisOverview': 'WHOIS 信息概覽',
-                                'originalWhois': 'WHOIS 原始信息',
-                                'copyButton': '複製',
-                                'screenshotButton': '截圖',
                                 'copiedToClipboard': '原始信息已複製到剪貼板',
                                 'copyFailed': '複製失敗，請手動複製',
                                 'screenshotFailed': '截圖失敗，請稍後重試',
                                 'domainName': '域名',
                                 'registrar': '註冊商',
-                                'whoisServer': 'WHOIS 伺服器',
                                 'updatedDate': '更新日',
                                 'creationDate': '註冊日',
                                 'expiryDate': '過期日',
@@ -1296,12 +1105,6 @@
                                 'registrantEmail': '註冊人郵箱',
                                 'error': '錯誤: {{message}}',
                                 'requestFailed': '請求失敗: {{status}}',
-                                'knownTlds': '已知域名後綴',
-                                'tldFilterPlaceholder': '搜尋域名後綴或 WHOIS 伺服器',
-                                'tldCount': '顯示 {{count}} / 共 {{total}} 個',
-                                'notAvailable': '暫無',
-                                'noTldMatch': '無匹配的後綴',
-                                'unknownTldWarning': '未知域名後綴，將嘗試通過預設伺服器查詢',
                                 'originalRdap': 'RDAP 原始資訊',
                                 'noRdapService': '該後綴暫無 RDAP 查詢服務，請通過 ICANN 官方查詢',
                                 'icannLookup': '前往 ICANN 查詢',
@@ -1321,15 +1124,11 @@
                                 'noHistory': 'No search history',
                                 'searchAgain': 'Search Again',
                                 'whoisOverview': 'WHOIS Information Overview',
-                                'originalWhois': 'Original WHOIS Information',
-                                'copyButton': 'Copy',
-                                'screenshotButton': 'Screenshot',
                                 'copiedToClipboard': 'Original information copied to clipboard',
                                 'copyFailed': 'Copy failed, please copy manually',
                                 'screenshotFailed': 'Screenshot failed, please try again later',
                                 'domainName': 'Domain Name',
                                 'registrar': 'Registrar',
-                                'whoisServer': 'WHOIS Server',
                                 'updatedDate': 'Updated Date',
                                 'creationDate': 'Creation Date',
                                 'expiryDate': 'Expiry Date',
@@ -1345,12 +1144,6 @@
                                 'registrantEmail': 'Registrant Email',
                                 'error': 'Error: {{message}}',
                                 'requestFailed': 'Request failed: {{status}}',
-                                'knownTlds': 'Known TLDs',
-                                'tldFilterPlaceholder': 'Search TLD or WHOIS server',
-                                'tldCount': 'Showing {{count}} of {{total}}',
-                                'notAvailable': 'N/A',
-                                'noTldMatch': 'No matching TLD',
-                                'unknownTldWarning': 'Unknown TLD, will try querying via the default server',
                                 'originalRdap': 'Original RDAP Information',
                                 'noRdapService': 'No RDAP service for this TLD, please use ICANN official lookup',
                                 'icannLookup': 'Go to ICANN Lookup',
@@ -1370,15 +1163,11 @@
                                 'noHistory': 'Нет истории поиска',
                                 'searchAgain': 'Искать снова',
                                 'whoisOverview': 'Обзор информации WHOIS',
-                                'originalWhois': 'Оригинальная информация WHOIS',
-                                'copyButton': 'Копировать',
-                                'screenshotButton': 'Скриншот',
                                 'copiedToClipboard': 'Оригинальная информация скопирована в буфер обмена',
                                 'copyFailed': 'Не удалось скопировать, пожалуйста, скопируйте вручную',
                                 'screenshotFailed': 'Не удалось сделать скриншот, попробуйте позже',
                                 'domainName': 'Доменное имя',
                                 'registrar': 'Регистратор',
-                                'whoisServer': 'WHOIS сервер',
                                 'updatedDate': 'Дата обновления',
                                 'creationDate': 'Дата создания',
                                 'expiryDate': 'Дата истечения',
@@ -1394,12 +1183,6 @@
                                 'registrantEmail': 'Email регистранта',
                                 'error': 'Ошибка: {{message}}',
                                 'requestFailed': 'Запрос не выполнен: {{status}}',
-                                'knownTlds': 'Известные TLD',
-                                'tldFilterPlaceholder': 'Поиск TLD или WHOIS сервера',
-                                'tldCount': 'Показано {{count}} из {{total}}',
-                                'notAvailable': 'Н/Д',
-                                'noTldMatch': 'Совпадений не найдено',
-                                'unknownTldWarning': 'Неизвестный TLD, запрос будет выполнен через сервер по умолчанию',
                                 'originalRdap': 'Оригинальная информация RDAP',
                                 'noRdapService': 'Для этого TLD нет службы RDAP, используйте официальный поиск ICANN',
                                 'icannLookup': 'Перейти к поиску ICANN',
@@ -1419,15 +1202,11 @@
                                 'noHistory': 'No hay historial de búsqueda',
                                 'searchAgain': 'Buscar de nuevo',
                                 'whoisOverview': 'Resumen de información WHOIS',
-                                'originalWhois': 'Información original de WHOIS',
-                                'copyButton': 'Copiar',
-                                'screenshotButton': 'Captura de pantalla',
                                 'copiedToClipboard': 'Información original copiada al portapapeles',
                                 'copyFailed': 'Error al copiar, por favor copie manualmente',
                                 'screenshotFailed': 'Error al tomar captura de pantalla, intente nuevamente más tarde',
                                 'domainName': 'Nombre de dominio',
                                 'registrar': 'Registrador',
-                                'whoisServer': 'Servidor WHOIS',
                                 'updatedDate': 'Fecha de actualización',
                                 'creationDate': 'Fecha de creación',
                                 'expiryDate': 'Fecha de expiración',
@@ -1443,12 +1222,6 @@
                                 'registrantEmail': 'Email del registrante',
                                 'error': 'Error: {{message}}',
                                 'requestFailed': 'Solicitud fallida: {{status}}',
-                                'knownTlds': 'TLD conocidos',
-                                'tldFilterPlaceholder': 'Buscar TLD o servidor WHOIS',
-                                'tldCount': 'Mostrando {{count}} de {{total}}',
-                                'notAvailable': 'N/D',
-                                'noTldMatch': 'Sin coincidencias',
-                                'unknownTldWarning': 'TLD desconocido, se intentará consultar mediante el servidor predeterminado',
                                 'originalRdap': 'Información original de RDAP',
                                 'noRdapService': 'No hay servicio RDAP para este TLD, use la búsqueda oficial de ICANN',
                                 'icannLookup': 'Ir a búsqueda ICANN',
@@ -1459,26 +1232,23 @@
                             }
                         }
                     }
-                }, function (err, t) {
+                }, function () {
                     updateContent();
                 });
             }
 
             function updateContent() {
-                // 更新其他内容的翻译
-                $('[data-i18n]').each(function () {
-                    const $this = $(this);
-                    const key = $this.data('i18n');
+                $$('[data-i18n]').forEach(function (el) {
+                    const key = el.getAttribute('data-i18n');
                     if (key === 'remainingTime' || key === 'registrationPeriod') {
-                        const time = $this.data('time');
-                        const unit = $this.data('unit');
-                        $this.html(i18next.t(key, { time: time, unit: i18next.t(unit) }));
-                    } else if (key && key.includes('[placeholder]')) {
-                        // 特殊处理 placeholder 属性
+                        const time = el.getAttribute('data-time');
+                        const unit = el.getAttribute('data-unit');
+                        el.innerHTML = i18next.t(key, { time: time, unit: i18next.t(unit) });
+                    } else if (key && key.indexOf('[placeholder]') === 0) {
                         const placeholderKey = key.replace('[placeholder]', '');
-                        $this.attr('placeholder', i18next.t(placeholderKey));
+                        el.setAttribute('placeholder', i18next.t(placeholderKey));
                     } else if (key) {
-                        $this.text(i18next.t(key));
+                        el.textContent = i18next.t(key);
                     }
                 });
             }
