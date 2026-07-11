@@ -1075,6 +1075,24 @@
 
             function handleWhoisResponse(response) {
                 if (response.rdap) {
+                    // 检测是否为 IP 查询（RDAP 响应含 startAddress 或 objectClassName 为 ip network）
+                    const isIpQuery = response.rdap.objectClassName === 'ip network' ||
+                        !!response.rdap.startAddress || !!response.rdap.cidr0_cidrs;
+                    if (isIpQuery) {
+                        const { importantInfoHtml, originalInfoHtml } = formatIpInfo(response.rdap, {
+                            server: response.rdap_server || '',
+                            source: response.source || 'rdap',
+                            ip: response.domain || ''
+                        });
+                        importantInfo.innerHTML = importantInfoHtml;
+                        originalInfo.innerHTML = originalInfoHtml;
+                        resultDiv.classList.remove('hidden');
+                        resultDiv.classList.add('fade-in');
+                        setTimeout(() => resultDiv.classList.remove('fade-in'), 400);
+                        updateSearchHistory(domainInput.value.trim());
+                        updateContent();
+                        return;
+                    }
                     const { importantInfoHtml, originalInfoHtml } = formatRdapInfo(response.rdap, {
                         server: response.rdap_server || '',
                         source: response.source || 'rdap'
@@ -1184,6 +1202,14 @@
                     if (key === 'fn') result.fn = value;
                     else if (key === 'email') result.email = value;
                     else if (key === 'org') result.org = value;
+                    else if (key === 'tel') {
+                        const type = entry[1] && entry[1].type ? entry[1].type : 'voice';
+                        result.tel = result.tel || value;
+                        result['tel_' + type] = value;
+                    } else if (key === 'adr') {
+                        // adr 的 label 在 entry[1].label 中
+                        if (entry[1] && entry[1].label) result.address = entry[1].label;
+                    }
                 });
                 return result;
             }
@@ -1367,6 +1393,199 @@
                             </button>
                         </div>
                         <pre class="json-block scroll-area" id="originalInfoContent">${escapedText}</pre>
+                    </div>
+                `;
+
+                return { importantInfoHtml, originalInfoHtml };
+            }
+
+            // 格式化 IP RDAP 响应为结构化概览 + 原始信息 HTML
+            // 支持 IPv4 和 IPv6，字段来自 RIR（APNIC/ARIN/RIPE/LACNIC/AFRINIC）
+            function formatIpInfo(rdap, sourceInfo) {
+                if (!rdap || typeof rdap !== 'object') rdap = {};
+                sourceInfo = sourceInfo || {};
+                const sourceServer = escapeHtml(sourceInfo.server || '');
+                const queriedIp = escapeHtml(sourceInfo.ip || '');
+                const temp = {};
+                const rawDates = {};
+
+                // IP 地址
+                if (queriedIp) temp.ipAddress = queriedIp;
+
+                // 网络名称
+                if (rdap.name) temp.networkName = escapeHtml(rdap.name);
+
+                // 国家/地区
+                if (rdap.country) temp.ipCountry = escapeHtml(rdap.country);
+
+                // IP 范围（优先 handle，否则拼接 startAddress - endAddress）
+                if (rdap.handle) {
+                    temp.ipRange = escapeHtml(rdap.handle);
+                } else if (rdap.startAddress && rdap.endAddress) {
+                    temp.ipRange = escapeHtml(rdap.startAddress + ' - ' + rdap.endAddress);
+                }
+
+                // CIDR（cidr0_cidrs 数组）
+                if (Array.isArray(rdap.cidr0_cidrs) && rdap.cidr0_cidrs.length) {
+                    const cidrs = rdap.cidr0_cidrs.map(function (c) {
+                        if (c.v4prefix) return c.v4prefix + '/' + c.length;
+                        if (c.v6prefix) return c.v6prefix + '/' + c.length;
+                        return '';
+                    }).filter(Boolean);
+                    if (cidrs.length) temp.ipCidr = escapeHtml(cidrs.join(', '));
+                }
+
+                // IP 版本
+                if (rdap.ipVersion) {
+                    const ver = rdap.ipVersion === 'v6' ? 'IPv6' : 'IPv4';
+                    temp.ipVersion = escapeHtml(ver);
+                }
+
+                // 分配类型
+                if (rdap.type) temp.ipType = escapeHtml(rdap.type);
+
+                // 事件：注册、更新
+                if (Array.isArray(rdap.events)) {
+                    rdap.events.forEach(function (ev) {
+                        if (!ev.eventDate) return;
+                        if (ev.eventAction === 'registration') {
+                            rawDates.creationDate = ev.eventDate;
+                            temp.creationDate = formatDate(ev.eventDate);
+                        } else if (ev.eventAction === 'last changed') {
+                            rawDates.updatedDate = ev.eventDate;
+                            temp.updatedDate = formatDate(ev.eventDate);
+                        }
+                    });
+                }
+
+                // 状态
+                if (Array.isArray(rdap.status) && rdap.status.length) {
+                    temp.status = rdap.status.map(escapeHtml).join('<br>');
+                }
+
+                // 描述（remarks）
+                if (Array.isArray(rdap.remarks) && rdap.remarks.length) {
+                    const desc = rdap.remarks.map(function (r) {
+                        return Array.isArray(r.description) ? r.description.join('\n') : (r.description || '');
+                    }).filter(Boolean).join('\n');
+                    if (desc) temp.ipDescription = escapeHtml(desc).replace(/\n/g, '<br>');
+                }
+
+                // 联系信息（entities：abuse 优先，其次 technical、administrative）
+                if (Array.isArray(rdap.entities) && rdap.entities.length) {
+                    const rolePriority = ['abuse', 'technical', 'administrative', 'registrant'];
+                    const contacts = {};
+                    rdap.entities.forEach(function (entity) {
+                        const roles = entity.roles || [];
+                        const vcard = extractVcard(entity.vcardArray);
+                        for (let i = 0; i < rolePriority.length; i++) {
+                            const role = rolePriority[i];
+                            if (roles.indexOf(role) !== -1 && !contacts[role]) {
+                                contacts[role] = vcard;
+                                contacts[role].handle = entity.handle || '';
+                                break;
+                            }
+                        }
+                    });
+
+                    // 拼接联系信息（abuse 联系人最重要）
+                    const contactParts = [];
+                    if (contacts.abuse) {
+                        const c = contacts.abuse;
+                        const parts = [];
+                        if (c.fn) parts.push(c.fn);
+                        if (c.email) parts.push(c.email);
+                        if (c.tel) parts.push(c.tel);
+                        if (parts.length) contactParts.push(i18next.t('abuseContact', { defaultValue: '滥用投诉' }) + ': ' + parts.join(' / '));
+                    }
+                    if (contacts.technical) {
+                        const c = contacts.technical;
+                        const parts = [];
+                        if (c.fn) parts.push(c.fn);
+                        if (c.email) parts.push(c.email);
+                        if (c.tel) parts.push(c.tel);
+                        if (parts.length) contactParts.push(i18next.t('techContact', { defaultValue: '技术联系' }) + ': ' + parts.join(' / '));
+                    }
+                    if (contacts.administrative) {
+                        const c = contacts.administrative;
+                        const parts = [];
+                        if (c.fn) parts.push(c.fn);
+                        if (c.email) parts.push(c.email);
+                        if (parts.length) contactParts.push(i18next.t('adminContact', { defaultValue: '管理联系' }) + ': ' + parts.join(' / '));
+                    }
+                    if (contactParts.length) {
+                        temp.ipContacts = escapeHtml(contactParts.join('\n')).replace(/\n/g, '<br>');
+                    }
+                }
+
+                // WHOIS 服务器（port43）
+                if (rdap.port43) temp.ipWhoisServer = escapeHtml(rdap.port43);
+
+                // 按固定顺序构建显示字段
+                const fieldOrder = ['ipAddress', 'networkName', 'ipCountry', 'ipRange', 'ipCidr',
+                    'ipVersion', 'ipType', 'creationDate', 'updatedDate', 'status',
+                    'ipDescription', 'ipContacts', 'ipWhoisServer'];
+                const info = {};
+                fieldOrder.forEach(function (key) {
+                    if (temp[key]) info[key] = temp[key];
+                });
+
+                const registrationPeriod = calculatePeriod(rawDates.creationDate, 'registrationPeriod');
+
+                // 生成重要信息 HTML
+                let importantInfoHtml = `
+                    <div id="importantInfoCard" class="glass-inner rounded-3xl p-4 sm:p-6 mb-4 fade-in">
+                        <div class="flex justify-between items-center mb-5">
+                            <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
+                                <span data-i18n="ipOverview">IP 信息概览</span>
+                            </h3>
+                            <div class="flex items-center gap-2.5">
+                                <span class="source-badge source-rdap" title="${sourceServer}">RDAP</span>
+                                <button id="saveScreenshot" class="icon-btn p-2.5" title="截图">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="source-info-row">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span data-i18n="rdapServerLabel">RDAP 服务器</span>：
+                            <span class="source-server" title="${sourceServer}">${sourceServer}</span>
+                        </div>
+                        <div class="space-y-1">
+                            ${Object.entries(info).map(([key, value]) => `
+                                <div class="field-row">
+                                    <span class="field-label" data-i18n="${key}">${getLabel(key)}</span>
+                                    <span class="field-value">
+                                        ${value}
+                                        ${key === 'ipAddress' ? registrationPeriod : ''}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+                // 生成原始 RDAP JSON 信息 HTML
+                const rawJson = escapeHtml(JSON.stringify(rdap, null, 2));
+                let originalInfoHtml = `
+                    <div class="glass-inner rounded-3xl p-4 sm:p-6 fade-in">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
+                                <span data-i18n="originalRdap">RDAP 原始信息</span>
+                            </h3>
+                            <button id="copyOriginalInfo" class="icon-btn p-2.5" data-clipboard-target="#originalInfoContent" title="复制">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="json-block scroll-area" id="originalInfoContent">${rawJson}</div>
                     </div>
                 `;
 
@@ -1746,6 +1965,20 @@
                                 'noHistory': '暂无历史查询记录',
                                 'searchAgain': '再次查询',
                                 'whoisOverview': 'WHOIS 信息概览',
+                                'ipOverview': 'IP 信息概览',
+                                'ipAddress': 'IP 地址',
+                                'networkName': '网络名称',
+                                'ipCountry': '国家/地区',
+                                'ipRange': 'IP 范围',
+                                'ipCidr': 'CIDR',
+                                'ipVersion': 'IP 版本',
+                                'ipType': '分配类型',
+                                'ipDescription': '描述',
+                                'ipContacts': '联系信息',
+                                'ipWhoisServer': 'WHOIS 服务器',
+                                'abuseContact': '滥用投诉',
+                                'techContact': '技术联系',
+                                'adminContact': '管理联系',
                                 'copiedToClipboard': '原始信息已复制到剪贴板',
                                 'copyFailed': '复制失败，请手动复制',
                                 'screenshotFailed': '截图失败，请稍后重试',
@@ -1798,6 +2031,20 @@
                                 'noHistory': '暫無歷史查詢記錄',
                                 'searchAgain': '再次查詢',
                                 'whoisOverview': 'WHOIS 信息概覽',
+                                'ipOverview': 'IP 資訊概覽',
+                                'ipAddress': 'IP 位址',
+                                'networkName': '網路名稱',
+                                'ipCountry': '國家/地區',
+                                'ipRange': 'IP 範圍',
+                                'ipCidr': 'CIDR',
+                                'ipVersion': 'IP 版本',
+                                'ipType': '分配類型',
+                                'ipDescription': '描述',
+                                'ipContacts': '聯絡資訊',
+                                'ipWhoisServer': 'WHOIS 伺服器',
+                                'abuseContact': '濫用投訴',
+                                'techContact': '技術聯絡',
+                                'adminContact': '管理聯絡',
                                 'copiedToClipboard': '原始信息已複製到剪貼板',
                                 'copyFailed': '複製失敗，請手動複製',
                                 'screenshotFailed': '截圖失敗，請稍後重試',
@@ -1850,6 +2097,20 @@
                                 'noHistory': 'No search history',
                                 'searchAgain': 'Search Again',
                                 'whoisOverview': 'WHOIS Information Overview',
+                                'ipOverview': 'IP Information Overview',
+                                'ipAddress': 'IP Address',
+                                'networkName': 'Network Name',
+                                'ipCountry': 'Country/Region',
+                                'ipRange': 'IP Range',
+                                'ipCidr': 'CIDR',
+                                'ipVersion': 'IP Version',
+                                'ipType': 'Allocation Type',
+                                'ipDescription': 'Description',
+                                'ipContacts': 'Contact Info',
+                                'ipWhoisServer': 'WHOIS Server',
+                                'abuseContact': 'Abuse Contact',
+                                'techContact': 'Technical Contact',
+                                'adminContact': 'Admin Contact',
                                 'copiedToClipboard': 'Original information copied to clipboard',
                                 'copyFailed': 'Copy failed, please copy manually',
                                 'screenshotFailed': 'Screenshot failed, please try again later',
@@ -1902,6 +2163,20 @@
                                 'noHistory': 'Нет истории поиска',
                                 'searchAgain': 'Искать снова',
                                 'whoisOverview': 'Обзор информации WHOIS',
+                                'ipOverview': 'Обзор IP-информации',
+                                'ipAddress': 'IP-адрес',
+                                'networkName': 'Имя сети',
+                                'ipCountry': 'Страна/регион',
+                                'ipRange': 'Диапазон IP',
+                                'ipCidr': 'CIDR',
+                                'ipVersion': 'Версия IP',
+                                'ipType': 'Тип распределения',
+                                'ipDescription': 'Описание',
+                                'ipContacts': 'Контактная информация',
+                                'ipWhoisServer': 'WHOIS-сервер',
+                                'abuseContact': 'Контакт по злоупотреблениям',
+                                'techContact': 'Технический контакт',
+                                'adminContact': 'Административный контакт',
                                 'copiedToClipboard': 'Оригинальная информация скопирована в буфер обмена',
                                 'copyFailed': 'Не удалось скопировать, пожалуйста, скопируйте вручную',
                                 'screenshotFailed': 'Не удалось сделать скриншот, попробуйте позже',
@@ -1954,6 +2229,20 @@
                                 'noHistory': 'No hay historial de búsqueda',
                                 'searchAgain': 'Buscar de nuevo',
                                 'whoisOverview': 'Resumen de información WHOIS',
+                                'ipOverview': 'Resumen de información IP',
+                                'ipAddress': 'Dirección IP',
+                                'networkName': 'Nombre de red',
+                                'ipCountry': 'País/Región',
+                                'ipRange': 'Rango IP',
+                                'ipCidr': 'CIDR',
+                                'ipVersion': 'Versión IP',
+                                'ipType': 'Tipo de asignación',
+                                'ipDescription': 'Descripción',
+                                'ipContacts': 'Información de contacto',
+                                'ipWhoisServer': 'Servidor WHOIS',
+                                'abuseContact': 'Contacto de abuso',
+                                'techContact': 'Contacto técnico',
+                                'adminContact': 'Contacto administrativo',
                                 'copiedToClipboard': 'Información original copiada al portapapeles',
                                 'copyFailed': 'Error al copiar, por favor copie manualmente',
                                 'screenshotFailed': 'Error al tomar captura de pantalla, intente nuevamente más tarde',
