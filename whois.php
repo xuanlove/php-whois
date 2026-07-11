@@ -18,6 +18,8 @@ define('USER_AGENT', 'php-whois/2.0 (RDAP client)');
 
 // 已知 ccTLD RDAP 服务器补充列表（IANA 引导文件未收录但实际提供 RDAP 服务）
 // 优先于 IANA 引导文件使用
+// 注意：.tw 已被 IANA 引导文件正确收录（ccrdap.twnic.tw/tw），此处不再覆盖。
+// 仅补充 IANA 引导文件未收录但实际提供 RDAP 服务的 ccTLD。
 $EXTRA_RDAP_SERVERS = [
     'cn'       => 'https://rdap.cnnic.cn',
     'com.cn'   => 'https://rdap.cnnic.cn',
@@ -29,7 +31,6 @@ $EXTRA_RDAP_SERVERS = [
     'sh.cn'    => 'https://rdap.cnnic.cn',
     'gd.cn'    => 'https://rdap.cnnic.cn',
     'zj.cn'    => 'https://rdap.cnnic.cn',
-    'tw'       => 'https://rdap.twnic.tw',
     'jp'       => 'https://rdap.jprs.jp',
     'kr'       => 'https://rdap.kisa.or.kr',
     'ru'       => 'https://rdap.tcinet.ru',
@@ -158,14 +159,19 @@ function findRdapServer($domain, $map) {
 function queryDomainRdap($domain, $baseUrl) {
     $url = $baseUrl . '/domain/' . $domain;
     $resp = httpGetJson($url);
+    // 查询失败时提供 ICANN 查询页作为降级出口，保证用户始终能继续查询
+    $fallback = ICANN_LOOKUP . '?domain=' . urlencode($domain);
     if ($resp === null) {
-        return ['domain' => $domain, 'error' => 'RDAP query failed', 'query_url' => $url];
+        // 网络/SSL/超时等失败：返回 fallback 让用户可跳转 ICANN 查询
+        return ['domain' => $domain, 'error' => 'RDAP query failed', 'query_url' => $url, 'fallback' => $fallback];
     }
     if ($resp['code'] === 404) {
+        // 404 表示域名未注册，属于正常业务结果，不提供 fallback
         return ['domain' => $domain, 'error' => 'Domain not found'];
     }
     if ($resp['code'] !== 200) {
-        return ['domain' => $domain, 'error' => 'RDAP server returned HTTP ' . $resp['code']];
+        // RDAP 服务器异常（如 500/501/502）：提供 fallback
+        return ['domain' => $domain, 'error' => 'RDAP server returned HTTP ' . $resp['code'], 'fallback' => $fallback];
     }
     return ['domain' => $domain, 'rdap' => $resp['data']];
 }
