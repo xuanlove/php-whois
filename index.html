@@ -10,7 +10,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/dom-to-image/2.6.0/dom-to-image.min.js"></script>
-    <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/clipboard.js/2.0.10/clipboard.min.js"></script>
     <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/i18next/21.6.12/i18next.min.js"></script>
     <style>
         /* ===== 主题变量 ===== */
@@ -1168,15 +1167,39 @@
             }
 
             function initClipboard() {
-                new ClipboardJS('#copyOriginalInfo', {
-                    text: function () {
-                        return $('#originalInfoContent').textContent;
+                // 使用原生 navigator.clipboard API，无需第三方库
+                document.addEventListener('click', function (e) {
+                    const btn = e.target.closest('#copyOriginalInfo');
+                    if (!btn) return;
+                    const content = $('#originalInfoContent');
+                    if (!content) return;
+                    const text = content.textContent;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).then(
+                            () => showToast('copiedToClipboard'),
+                            () => fallbackCopy(text)
+                        );
+                    } else {
+                        fallbackCopy(text);
                     }
-                }).on('success', function () {
-                    showToast('copiedToClipboard');
-                }).on('error', function () {
-                    showToast('copyFailed');
                 });
+            }
+
+            // 降级方案：使用临时 textarea + execCommand
+            function fallbackCopy(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                try {
+                    document.execCommand('copy');
+                    showToast('copiedToClipboard');
+                } catch (err) {
+                    showToast('copyFailed');
+                }
+                document.body.removeChild(ta);
             }
 
             function handleSaveScreenshot() {
