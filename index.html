@@ -1088,43 +1088,12 @@
                     updateContent();
                 } else if (response.whois) {
                     // RDAP 无服务/失败，回退到 WHOIS 协议查询成功
-                    const whoisText = escapeHtml(response.whois);
-                    const whoisServer = escapeHtml(response.whois_server || '');
-                    importantInfo.innerHTML = `
-                        <div class="glass-inner rounded-3xl p-4 sm:p-6 mb-4 fade-in">
-                            <div class="flex justify-between items-center mb-5">
-                                <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
-                                    <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
-                                    <span data-i18n="whoisOverview">WHOIS 信息概览</span>
-                                </h3>
-                                <span class="source-badge source-whois" title="${whoisServer}">WHOIS</span>
-                            </div>
-                            <div class="source-info-row">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                                <span data-i18n="whoisServerLabel">WHOIS 服务器</span>：
-                                <span class="source-server" title="${whoisServer}">${whoisServer}</span>
-                            </div>
-                            <div class="text-sm" style="color: var(--text-muted);" data-i18n="whoisFallbackNote">该域名后缀暂无 RDAP 服务，已通过 WHOIS 协议获取注册信息</div>
-                        </div>
-                    `;
-                    originalInfo.innerHTML = `
-                        <div class="glass-inner rounded-3xl p-4 sm:p-6 fade-in">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
-                                    <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
-                                    <span data-i18n="whoisRawText">WHOIS 原始信息</span>
-                                </h3>
-                                <button id="copyOriginalInfo" class="icon-btn p-2.5" data-clipboard-target="#originalInfoContent" title="复制">
-                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <pre class="json-block scroll-area" id="originalInfoContent">${whoisText}</pre>
-                        </div>
-                    `;
+                    const { importantInfoHtml, originalInfoHtml } = formatWhoisInfo(response.whois, {
+                        server: response.whois_server || '',
+                        source: 'whois'
+                    });
+                    importantInfo.innerHTML = importantInfoHtml;
+                    originalInfo.innerHTML = originalInfoHtml;
                     resultDiv.classList.remove('hidden');
                     resultDiv.classList.add('fade-in');
                     setTimeout(() => resultDiv.classList.remove('fade-in'), 400);
@@ -1225,6 +1194,183 @@
                 const date = new Date(dateString);
                 if (isNaN(date.getTime())) return escapeHtml(dateString);
                 return escapeHtml(date.toLocaleString());
+            }
+
+            // 从 WHOIS 原始文本提取结构化字段
+            // 兼容多种 WHOIS 服务器格式（Verisign、CNNIC、PIR 等）
+            function parseWhoisText(text) {
+                if (!text || typeof text !== 'string') return {};
+                const result = {};
+                const rawDates = {};
+
+                // 按行解析键值对（兼容 "Key: Value" 与 "Key........Value" 格式）
+                const lines = text.split(/\r?\n/);
+                const multiValueKeys = ['name server', 'nserver', 'name servers', 'domain status', 'status'];
+                const multiValues = {};
+
+                lines.forEach(function (line) {
+                    // 跳过注释行、空行、分隔符
+                    if (!line || /^\s*(%|#|>>>|---|=====)/.test(line)) return;
+                    // 匹配 "Key: Value" 或 "Key......Value"
+                    const m = line.match(/^\s*([A-Za-z][A-Za-z\s]{0,40}?)\s*[:.]\s*(.+?)\s*$/);
+                    if (!m) return;
+                    let key = m[1].toLowerCase().trim();
+                    let val = m[2].trim();
+
+                    // 域名
+                    if (key === 'domain name' || key === 'domain') {
+                        if (!result.domainName) result.domainName = val;
+                    }
+                    // 注册局域名 ID
+                    else if (key === 'registry domain id' || key === 'domain id') {
+                        if (!result.registryDomainId) result.registryDomainId = val;
+                    }
+                    // 注册商
+                    else if (key === 'registrar' || key === 'registration service provider') {
+                        if (!result.registrar) result.registrar = val;
+                    }
+                    // IANA ID
+                    else if (key === 'registrar iana id' || key === 'iana id') {
+                        if (!result.ianaId) result.ianaId = val;
+                    }
+                    // 创建日期
+                    else if (key === 'creation date' || key === 'created' || key === 'created date' || key === 'registration time' || key === 'registered on') {
+                        if (!rawDates.creationDate) { rawDates.creationDate = val; result.creationDate = val; }
+                    }
+                    // 过期日期
+                    else if (key === 'registry expiry date' || key === 'expiry date' || key === 'expiration date' || key === 'expire' || key === 'expires on' || key === 'paid-till') {
+                        if (!rawDates.expiryDate) { rawDates.expiryDate = val; result.expiryDate = val; }
+                    }
+                    // 更新日期
+                    else if (key === 'updated date' || key === 'last updated' || key === 'last modified' || key === 'changed') {
+                        if (!rawDates.updatedDate) { rawDates.updatedDate = val; result.updatedDate = val; }
+                    }
+                    // 状态（多值）
+                    else if (multiValueKeys.indexOf(key) !== -1) {
+                        if (key === 'domain status' || key === 'status') {
+                            if (!multiValues.status) multiValues.status = [];
+                            // 去掉 URL 部分（如 "clientTransferProhibited https://..."）
+                            const statusVal = val.split(/\s+/)[0];
+                            if (multiValues.status.indexOf(statusVal) === -1) multiValues.status.push(statusVal);
+                        } else {
+                            if (!multiValues.nameServers) multiValues.nameServers = [];
+                            if (multiValues.nameServers.indexOf(val) === -1) multiValues.nameServers.push(val);
+                        }
+                    }
+                    // DNSSEC
+                    else if (key === 'dnssec') {
+                        if (!result.dnssec) {
+                            const signed = val.toLowerCase() === 'signed' || val.toLowerCase() === 'yes' || val.indexOf('1') !== -1;
+                            const k = signed ? 'dnssecSigned' : 'dnssecUnsigned';
+                            result.dnssec = '<span data-i18n="' + k + '">' + i18next.t(k, { defaultValue: signed ? '已签名' : '未签名' }) + '</span>';
+                        }
+                    }
+                });
+
+                // 合并多值字段
+                if (multiValues.status && multiValues.status.length) {
+                    result.status = multiValues.status.map(escapeHtml).join('<br>');
+                }
+                if (multiValues.nameServers && multiValues.nameServers.length) {
+                    result.nameServers = multiValues.nameServers.map(escapeHtml).join('<br>');
+                }
+
+                // 转义所有字符串值
+                ['domainName', 'registryDomainId', 'registrar', 'ianaId', 'creationDate', 'expiryDate', 'updatedDate'].forEach(function (k) {
+                    if (result[k]) {
+                        if (k === 'creationDate' || k === 'expiryDate' || k === 'updatedDate') {
+                            result[k] = formatDate(result[k]);
+                            // 保留原始日期用于时间跨度计算
+                            if (k === 'creationDate') rawDates.creationDate = rawDates.creationDate;
+                        } else {
+                            result[k] = escapeHtml(result[k]);
+                        }
+                    }
+                });
+
+                return { fields: result, rawDates: rawDates };
+            }
+
+            // 格式化 WHOIS 文本为结构化概览 + 原始信息 HTML
+            function formatWhoisInfo(whoisText, sourceInfo) {
+                if (!whoisText || typeof whoisText !== 'string') whoisText = '';
+                sourceInfo = sourceInfo || {};
+                const sourceServer = escapeHtml(sourceInfo.server || '');
+                const parsed = parseWhoisText(whoisText);
+                const temp = parsed.fields;
+                const rawDates = parsed.rawDates;
+
+                // 按固定顺序构建显示字段（与 RDAP 一致）
+                const fieldOrder = ['domainName', 'registrar', 'ianaId', 'registryDomainId',
+                    'creationDate', 'expiryDate', 'updatedDate', 'status',
+                    'nameServers', 'dnssec'];
+                const info = {};
+                fieldOrder.forEach(function (key) {
+                    if (temp[key]) info[key] = temp[key];
+                });
+
+                const registrationPeriod = calculatePeriod(rawDates.creationDate, 'registrationPeriod');
+                const remainingTime = calculatePeriod(rawDates.expiryDate, 'remainingTime');
+
+                // 生成重要信息 HTML（与 RDAP 分支风格一致）
+                let importantInfoHtml = `
+                    <div id="importantInfoCard" class="glass-inner rounded-3xl p-4 sm:p-6 mb-4 fade-in">
+                        <div class="flex justify-between items-center mb-5">
+                            <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
+                                <span data-i18n="whoisOverview">WHOIS 信息概览</span>
+                            </h3>
+                            <div class="flex items-center gap-2.5">
+                                <span class="source-badge source-whois" title="${sourceServer}">WHOIS</span>
+                                <button id="saveScreenshot" class="icon-btn p-2.5" title="截图">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="source-info-row">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span data-i18n="whoisServerLabel">WHOIS 服务器</span>：
+                            <span class="source-server" title="${sourceServer}">${sourceServer}</span>
+                        </div>
+                        <div class="space-y-1">
+                            ${Object.entries(info).map(([key, value]) => `
+                                <div class="field-row">
+                                    <span class="field-label" data-i18n="${key}">${getLabel(key)}</span>
+                                    <span class="field-value">
+                                        ${value}
+                                        ${key === 'domainName' ? registrationPeriod : ''}
+                                        ${key === 'expiryDate' ? remainingTime : ''}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+                // 生成原始 WHOIS 文本 HTML
+                const escapedText = escapeHtml(whoisText);
+                let originalInfoHtml = `
+                    <div class="glass-inner rounded-3xl p-4 sm:p-6 fade-in">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
+                                <span data-i18n="whoisRawText">WHOIS 原始信息</span>
+                            </h3>
+                            <button id="copyOriginalInfo" class="icon-btn p-2.5" data-clipboard-target="#originalInfoContent" title="复制">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <pre class="json-block scroll-area" id="originalInfoContent">${escapedText}</pre>
+                    </div>
+                `;
+
+                return { importantInfoHtml, originalInfoHtml };
             }
 
             // 解析 RDAP JSON 响应，生成概览和原始信息 HTML
