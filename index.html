@@ -3,53 +3,58 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6366f1">
     <title data-i18n="title">WHOIS 查询</title>
     <link rel="stylesheet" href="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/tailwindcss/2.2.19/tailwind.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/dom-to-image/2.6.0/dom-to-image.min.js"></script>
     <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/clipboard.js/2.0.10/clipboard.min.js"></script>
     <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/i18next/21.6.12/i18next.min.js"></script>
     <style>
         /* ===== 主题变量 ===== */
         :root {
-            --bg-app: #f1f5f9;
-            --bg-gradient-1: #e0e7ff;
-            --bg-gradient-2: #f1f5f9;
-            --bg-gradient-3: #fae8ff;
-            --card-bg: rgba(255, 255, 255, 0.75);
-            --card-border: rgba(226, 232, 240, 0.8);
-            --card-shadow: 0 8px 32px rgba(99, 102, 241, 0.08);
-            --text-primary: #0f172a;
+            --bg-base: #667eea;
+            --bg-accent-1: #764ba2;
+            --bg-accent-2: #f093fb;
+            --bg-accent-3: #4facfe;
+            --glass-bg: rgba(255, 255, 255, 0.55);
+            --glass-bg-strong: rgba(255, 255, 255, 0.72);
+            --glass-border: rgba(255, 255, 255, 0.65);
+            --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            --glass-blur: 24px;
+            --text-primary: #1e293b;
             --text-secondary: #475569;
             --text-muted: #94a3b8;
             --accent: #6366f1;
             --accent-hover: #4f46e5;
-            --accent-light: rgba(99, 102, 241, 0.1);
-            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            --input-bg: rgba(255, 255, 255, 0.9);
-            --input-border: #e2e8f0;
-            --input-focus-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
-            --secondary-card-bg: rgba(248, 250, 252, 0.8);
-            --secondary-card-border: rgba(226, 232, 240, 0.6);
-            --tag-bg: rgba(99, 102, 241, 0.08);
+            --accent-light: rgba(99, 102, 241, 0.12);
+            --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --input-bg: rgba(255, 255, 255, 0.6);
+            --input-border: rgba(255, 255, 255, 0.7);
+            --input-focus-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+            --inner-glass-bg: rgba(255, 255, 255, 0.4);
+            --inner-glass-border: rgba(255, 255, 255, 0.5);
+            --tag-bg: rgba(99, 102, 241, 0.1);
             --tag-text: #4f46e5;
-            --divider: rgba(226, 232, 240, 0.8);
-            --scrollbar-thumb: #cbd5e1;
-            --scrollbar-track: transparent;
-            --overlay: rgba(15, 23, 42, 0.4);
+            --divider: rgba(255, 255, 255, 0.5);
+            --scrollbar-thumb: rgba(99, 102, 241, 0.3);
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
+            --header-bg: rgba(255, 255, 255, 0.6);
         }
 
         html.dark {
-            --bg-app: #0f172a;
-            --bg-gradient-1: #1e1b4b;
-            --bg-gradient-2: #0f172a;
-            --bg-gradient-3: #312e81;
-            --card-bg: rgba(30, 41, 59, 0.75);
-            --card-border: rgba(51, 65, 85, 0.5);
-            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --bg-base: #0f0c29;
+            --bg-accent-1: #302b63;
+            --bg-accent-2: #24243e;
+            --bg-accent-3: #6366f1;
+            --glass-bg: rgba(30, 41, 59, 0.55);
+            --glass-bg-strong: rgba(30, 41, 59, 0.72);
+            --glass-border: rgba(148, 163, 184, 0.25);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             --text-primary: #f1f5f9;
             --text-secondary: #cbd5e1;
             --text-muted: #64748b;
@@ -57,105 +62,215 @@
             --accent-hover: #6366f1;
             --accent-light: rgba(129, 140, 248, 0.15);
             --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            --input-bg: rgba(15, 23, 42, 0.6);
-            --input-border: #334155;
-            --input-focus-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
-            --secondary-card-bg: rgba(15, 23, 42, 0.5);
-            --secondary-card-border: rgba(51, 65, 85, 0.4);
+            --input-bg: rgba(15, 23, 42, 0.5);
+            --input-border: rgba(148, 163, 184, 0.3);
+            --input-focus-shadow: 0 0 0 4px rgba(129, 140, 248, 0.2);
+            --inner-glass-bg: rgba(30, 41, 59, 0.4);
+            --inner-glass-border: rgba(148, 163, 184, 0.2);
             --tag-bg: rgba(129, 140, 248, 0.15);
             --tag-text: #a5b4fc;
-            --divider: rgba(51, 65, 85, 0.5);
-            --scrollbar-thumb: #475569;
-            --scrollbar-track: transparent;
-            --overlay: rgba(0, 0, 0, 0.6);
+            --divider: rgba(148, 163, 184, 0.2);
+            --scrollbar-thumb: rgba(129, 140, 248, 0.4);
+            --header-bg: rgba(15, 23, 42, 0.6);
         }
 
         * {
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         html,
         body {
             height: 100%;
+            margin: 0;
             overflow: hidden;
         }
 
         body {
-            background: var(--bg-app);
+            font-family: "Space Grotesk", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
             color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-                "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
-            transition: background 0.3s ease, color 0.3s ease;
+            background: var(--bg-base);
+            transition: color 0.3s ease;
+            position: relative;
+            min-height: 100vh;
         }
 
-        /* ===== 背景装饰 ===== */
-        .app-bg {
+        /* ===== 动态渐变背景 ===== */
+        .bg-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background: linear-gradient(-45deg, var(--bg-base), var(--bg-accent-1), var(--bg-accent-2), var(--bg-accent-3));
+            background-size: 400% 400%;
+            animation: gradientFlow 18s ease infinite;
+        }
+
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 漂浮光斑 */
+        .bg-blobs {
             position: fixed;
             inset: 0;
             z-index: -1;
-            background:
-                radial-gradient(ellipse 80% 50% at 20% 0%, var(--bg-gradient-1), transparent),
-                radial-gradient(ellipse 60% 50% at 80% 100%, var(--bg-gradient-3), transparent),
-                var(--bg-gradient-2);
+            overflow: hidden;
+            pointer-events: none;
         }
 
-        /* ===== 玻璃态卡片 ===== */
-        .glass-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            box-shadow: var(--card-shadow);
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            mix-blend-mode: screen;
         }
 
-        /* ===== 现代输入框 ===== */
-        .modern-input {
+        html.dark .blob {
+            mix-blend-mode: lighten;
+            opacity: 0.35;
+        }
+
+        .blob-1 {
+            width: 480px; height: 480px;
+            background: #f093fb;
+            top: -120px; left: -120px;
+            animation: floatBlob1 22s ease-in-out infinite;
+        }
+
+        .blob-2 {
+            width: 420px; height: 420px;
+            background: #4facfe;
+            bottom: -100px; right: -80px;
+            animation: floatBlob2 26s ease-in-out infinite;
+        }
+
+        .blob-3 {
+            width: 360px; height: 360px;
+            background: #43e97b;
+            top: 40%; right: 20%;
+            animation: floatBlob3 20s ease-in-out infinite;
+        }
+
+        @keyframes floatBlob1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(80px, 120px) scale(1.15); }
+        }
+
+        @keyframes floatBlob2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-100px, -80px) scale(0.9); }
+        }
+
+        @keyframes floatBlob3 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-60px, 100px) scale(1.2); }
+        }
+
+        /* ===== 毛玻璃卡片（核心） ===== */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        html.dark .glass {
+            box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-strong {
+            background: var(--glass-bg-strong);
+            backdrop-filter: blur(var(--glass-blur)) saturate(200%);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(200%);
+            border: 1px solid var(--glass-border);
+        }
+
+        .glass-inner {
+            background: var(--inner-glass-bg);
+            backdrop-filter: blur(12px) saturate(150%);
+            -webkit-backdrop-filter: blur(12px) saturate(150%);
+            border: 1px solid var(--inner-glass-border);
+        }
+
+        /* ===== 现代输入框（毛玻璃） ===== */
+        .glass-input {
             background: var(--input-bg);
+            backdrop-filter: blur(12px) saturate(150%);
+            -webkit-backdrop-filter: blur(12px) saturate(150%);
             border: 1.5px solid var(--input-border);
             color: var(--text-primary);
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: all 0.25s ease;
         }
 
-        .modern-input::placeholder {
+        .glass-input::placeholder {
             color: var(--text-muted);
         }
 
-        .modern-input:focus {
+        .glass-input:focus {
             outline: none;
             border-color: var(--accent);
             box-shadow: var(--input-focus-shadow);
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        html.dark .glass-input:focus {
+            background: rgba(15, 23, 42, 0.7);
         }
 
         /* ===== 渐变按钮 ===== */
-        .gradient-btn {
+        .btn-gradient {
             background: var(--accent-gradient);
             color: #fff;
-            transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
-            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+            border: none;
+            cursor: pointer;
+            transition: transform 0.18s, box-shadow 0.25s, opacity 0.2s;
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+            position: relative;
+            overflow: hidden;
         }
 
-        .gradient-btn:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        .btn-gradient::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.25), transparent);
+            opacity: 0;
+            transition: opacity 0.25s;
         }
 
-        .gradient-btn:active:not(:disabled) {
+        .btn-gradient:hover:not(:disabled)::before {
+            opacity: 1;
+        }
+
+        .btn-gradient:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(99, 102, 241, 0.45);
+        }
+
+        .btn-gradient:active:not(:disabled) {
             transform: translateY(0);
         }
 
-        .gradient-btn:disabled {
-            opacity: 0.6;
+        .btn-gradient:disabled {
+            opacity: 0.65;
             cursor: not-allowed;
         }
 
         /* ===== 图标按钮 ===== */
         .icon-btn {
             color: var(--text-secondary);
-            transition: color 0.2s, background 0.2s;
-            border-radius: 10px;
             background: transparent;
             border: none;
             cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .icon-btn:hover {
@@ -163,21 +278,13 @@
             background: var(--accent-light);
         }
 
-        /* ===== 信息卡片 ===== */
-        .info-card {
-            background: var(--secondary-card-bg);
-            border: 1px solid var(--secondary-card-border);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
         /* ===== 字段行 ===== */
         .field-row {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            padding: 10px 14px;
-            border-radius: 12px;
+            gap: 6px;
+            padding: 12px 16px;
+            border-radius: 14px;
             transition: background 0.2s;
         }
 
@@ -189,27 +296,28 @@
             .field-row {
                 flex-direction: row;
                 align-items: center;
-                gap: 12px;
+                gap: 16px;
             }
         }
 
         .field-label {
             display: inline-flex;
             align-items: center;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--tag-text);
             background: var(--tag-bg);
-            padding: 4px 10px;
-            border-radius: 8px;
+            padding: 5px 12px;
+            border-radius: 999px;
             white-space: nowrap;
             flex-shrink: 0;
             align-self: flex-start;
+            letter-spacing: 0.3px;
         }
 
         @media (min-width: 640px) {
             .field-label {
-                min-width: 120px;
+                min-width: 110px;
                 justify-content: center;
                 align-self: center;
             }
@@ -219,113 +327,96 @@
             color: var(--text-primary);
             word-break: break-all;
             font-size: 14px;
-            line-height: 1.6;
+            line-height: 1.65;
             flex: 1;
+            font-weight: 500;
         }
 
-        /* ===== 标签徽章 ===== */
+        /* ===== 时间徽章 ===== */
         .time-badge {
             display: inline-flex;
             align-items: center;
             font-size: 11px;
             font-weight: 600;
             color: #fff;
-            padding: 2px 8px;
-            border-radius: 6px;
-            margin-left: 6px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            margin-left: 8px;
             vertical-align: middle;
         }
 
-        .time-badge.green {
-            background: var(--success);
-        }
-
-        .time-badge.blue {
-            background: var(--accent);
-        }
+        .time-badge.green { background: var(--success); }
+        .time-badge.blue { background: var(--accent); }
 
         /* ===== 历史项 ===== */
         .history-item {
-            background: var(--secondary-card-bg);
-            border: 1px solid var(--secondary-card-border);
-            padding: 10px 12px;
-            border-radius: 12px;
-            transition: transform 0.15s, border-color 0.2s;
+            background: var(--inner-glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--inner-glass-border);
+            padding: 12px 14px;
+            border-radius: 14px;
+            transition: all 0.18s ease;
         }
 
         .history-item:hover {
-            transform: translateX(2px);
+            transform: translateX(3px);
             border-color: var(--accent);
+            background: var(--accent-light);
         }
 
         /* ===== 滚动条 ===== */
         .scroll-area {
             scrollbar-width: thin;
-            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+            scrollbar-color: var(--scrollbar-thumb) transparent;
         }
 
-        .scroll-area::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        .scroll-area::-webkit-scrollbar-track {
-            background: var(--scrollbar-track);
-        }
-
+        .scroll-area::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scroll-area::-webkit-scrollbar-track { background: transparent; }
         .scroll-area::-webkit-scrollbar-thumb {
             background: var(--scrollbar-thumb);
             border-radius: 10px;
         }
+        .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-        .scroll-area::-webkit-scrollbar-thumb:hover {
-            background: var(--accent);
-        }
-
-        /* ===== 加载动画 ===== */
+        /* ===== 动画 ===== */
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+            to { transform: rotate(360deg); }
         }
-
-        .loading-spinner {
-            animation: spin 0.8s linear infinite;
-        }
+        .loading-spinner { animation: spin 0.8s linear infinite; }
 
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
         }
+        .fade-in { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 
-        .fade-in {
-            animation: fadeInUp 0.3s ease-out;
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
         }
 
         /* ===== Toast ===== */
         .toast {
             position: fixed;
-            bottom: 24px;
+            bottom: 28px;
             left: 50%;
-            transform: translateX(-50%) translateY(20px);
-            background: var(--text-primary);
-            color: var(--bg-app);
-            padding: 12px 24px;
-            border-radius: 12px;
+            transform: translateX(-50%) translateY(30px);
+            background: var(--glass-bg-strong);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 14px 26px;
+            border-radius: 16px;
             font-size: 14px;
             font-weight: 500;
             opacity: 0;
             transition: opacity 0.3s, transform 0.3s;
             z-index: 100;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             pointer-events: none;
+            white-space: nowrap;
         }
 
         .toast.show {
@@ -339,16 +430,18 @@
             bottom: 0;
             left: 0;
             right: 0;
-            max-height: 70vh;
-            background: var(--card-bg);
-            border-top: 1px solid var(--card-border);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px 20px 0 0;
+            max-height: 75vh;
+            background: var(--glass-bg-strong);
+            backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+            border-top: 1px solid var(--glass-border);
+            border-radius: 28px 28px 0 0;
             transform: translateY(100%);
-            transition: transform 0.3s ease;
-            z-index: 40;
-            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15);
+            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+            z-index: 50;
+            box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
         }
 
         .history-drawer.open {
@@ -356,49 +449,145 @@
         }
 
         .drawer-handle {
-            width: 40px;
-            height: 4px;
+            width: 44px;
+            height: 5px;
             background: var(--text-muted);
-            border-radius: 2px;
-            margin: 10px auto;
-            opacity: 0.5;
+            border-radius: 3px;
+            margin: 12px auto 8px;
+            opacity: 0.4;
+            flex-shrink: 0;
         }
 
-        @media (max-width: 640px) {
-            .result-container {
-                padding-bottom: 72px;
-            }
-        }
-
-        /* ===== 链接 ===== */
+        /* ===== 链接按钮 ===== */
         .link-btn {
             color: var(--accent);
             font-size: 13px;
-            font-weight: 500;
-            transition: color 0.2s;
+            font-weight: 600;
             background: transparent;
             border: none;
             cursor: pointer;
+            transition: color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        .link-btn:hover {
-            color: var(--accent-hover);
-        }
+        .link-btn:hover { color: var(--accent-hover); }
 
         /* ===== JSON 代码块 ===== */
         .json-block {
-            background: var(--secondary-card-bg);
-            border: 1px solid var(--secondary-card-border);
-            border-radius: 12px;
-            padding: 14px;
+            background: var(--inner-glass-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--inner-glass-border);
+            border-radius: 14px;
+            padding: 16px;
             font-family: "SF Mono", "Fira Code", "Consolas", monospace;
             font-size: 12px;
             color: var(--text-secondary);
             white-space: pre-wrap;
             word-break: break-all;
-            line-height: 1.6;
+            line-height: 1.7;
             max-height: 400px;
             overflow-y: auto;
+        }
+
+        /* ===== 布局 ===== */
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow: hidden;
+            padding: 16px;
+            display: flex;
+            gap: 16px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 639px) {
+            .main-content {
+                padding: 12px;
+                gap: 0;
+            }
+            .result-container {
+                padding-bottom: 80px;
+            }
+        }
+
+        .query-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 24px;
+        }
+
+        @media (max-width: 639px) {
+            .query-panel {
+                border-radius: 20px;
+            }
+        }
+
+        .history-panel {
+            width: 280px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 24px;
+        }
+
+        /* 圆形浮动按钮（移动端历史） */
+        .fab-history {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+            z-index: 40;
+            transition: transform 0.2s;
+        }
+
+        .fab-history:active {
+            transform: scale(0.92);
+        }
+
+        @media (max-width: 639px) {
+            .fab-history { display: inline-flex; }
+        }
+
+        /* 遮罩层 */
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 45;
+        }
+
+        .drawer-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
         }
     </style>
     <!-- by: danran  -->
@@ -407,116 +596,134 @@
 </head>
 
 <body>
-    <div class="app-bg"></div>
+    <!-- 动态渐变背景 -->
+    <div class="bg-canvas"></div>
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
 
-    <!-- 顶部导航栏 -->
-    <header class="glass-card sticky top-0 z-30 px-4 sm:px-6 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: var(--accent-gradient);">
-                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                </svg>
+    <div class="app-container">
+        <!-- 顶部导航栏 -->
+        <header class="glass" style="border-radius: 0; border-left: none; border-right: none; border-top: none;">
+            <div class="px-4 sm:px-6 py-3 flex items-center justify-between max-w-6xl mx-auto w-full">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl flex items-center justify-center" style="background: var(--accent-gradient); box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">
+                        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                    </div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight" style="color: var(--text-primary);" data-i18n="title">WHOIS 查询</h1>
+                </div>
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                    <button type="button" id="themeToggle" class="icon-btn p-2.5" title="切换主题">
+                        <svg id="themeIconSun" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <svg id="themeIconMoon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                    </button>
+                    <select id="languageSelect" class="glass-input text-sm rounded-xl py-2 px-3 cursor-pointer font-medium">
+                        <option value="zh-CN">简体</option>
+                        <option value="zh-TW">繁體</option>
+                        <option value="en">EN</option>
+                        <option value="ru">RU</option>
+                        <option value="es">ES</option>
+                    </select>
+                </div>
             </div>
-            <h1 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary);" data-i18n="title">WHOIS 查询</h1>
-        </div>
-        <div class="flex items-center gap-2">
-            <button type="button" id="historyToggle" class="icon-btn p-2 sm:hidden" title="历史记录">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </button>
-            <button type="button" id="themeToggle" class="icon-btn p-2" title="切换主题">
-                <svg id="themeIconSun" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <svg id="themeIconMoon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-            </button>
-            <select id="languageSelect" class="modern-input text-sm rounded-lg py-1.5 px-2 cursor-pointer">
-                <option value="zh-CN">简体中文</option>
-                <option value="zh-TW">繁體中文</option>
-                <option value="en">English</option>
-                <option value="ru">Русский</option>
-                <option value="es">Español</option>
-            </select>
-        </div>
-    </header>
+        </header>
 
-    <!-- 主内容区 -->
-    <main class="flex max-w-6xl mx-auto px-0 sm:px-4 py-0 sm:py-6 gap-0 sm:gap-6 h-[calc(100vh-64px)]">
-        <!-- 查询区 -->
-        <div class="glass-card flex flex-col flex-1 w-full rounded-none sm:rounded-2xl overflow-hidden">
-            <div class="p-4 sm:p-6 flex flex-col h-full">
-                <!-- 搜索表单 -->
-                <form id="whois-form" class="mb-4">
-                    <div class="flex relative gap-2">
-                        <div class="flex-1 relative">
-                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <input type="text" id="domain" name="domain" required placeholder="请输入IP或者域名"
-                                data-i18n="[placeholder]inputPlaceholder"
-                                class="modern-input w-full pl-11 pr-10 py-3 rounded-xl text-sm">
-                            <button type="button" id="clear-input"
-                                class="absolute right-3 top-1/2 -translate-y-1/2 icon-btn p-1 hidden">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 查询面板 -->
+            <div class="glass query-panel">
+                <div class="p-4 sm:p-6 flex flex-col h-full overflow-hidden">
+                    <!-- 搜索表单 -->
+                    <form id="whois-form" class="mb-4 flex-shrink-0">
+                        <div class="flex gap-2.5">
+                            <div class="flex-1 relative">
+                                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" id="domain" name="domain" required placeholder="请输入IP或者域名"
+                                    data-i18n="[placeholder]inputPlaceholder"
+                                    class="glass-input w-full pl-12 pr-11 py-3.5 rounded-2xl text-sm font-medium"
+                                    autocomplete="off" autocapitalize="off" spellcheck="false">
+                                <button type="button" id="clear-input"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 icon-btn p-1.5 hidden">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <button type="submit" id="submit-btn"
+                                class="btn-gradient flex items-center justify-center px-5 sm:px-7 rounded-2xl text-sm font-semibold whitespace-nowrap">
+                                <span data-i18n="search">查询</span>
+                                <svg class="loading-spinner ml-2 h-4 w-4 hidden" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                             </button>
                         </div>
-                        <button type="submit" id="submit-btn"
-                            class="gradient-btn flex items-center justify-center px-5 sm:px-6 rounded-xl text-sm font-semibold whitespace-nowrap">
-                            <span data-i18n="search">查询</span>
-                            <svg class="loading-spinner ml-2 h-4 w-4 hidden" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </form>
+                    </form>
 
-                <!-- 结果区 -->
-                <div id="resultDiv" class="hidden flex-1 overflow-hidden">
-                    <div class="h-full overflow-y-auto scroll-area result-container pb-16 sm:pb-4">
-                        <div id="importantInfo"></div>
-                        <div id="originalInfo" class="mt-4"></div>
+                    <!-- 结果区 -->
+                    <div id="resultDiv" class="hidden flex-1 overflow-hidden">
+                        <div class="h-full overflow-y-auto scroll-area result-container pr-1">
+                            <div id="importantInfo"></div>
+                            <div id="originalInfo" class="mt-4"></div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 历史记录（桌面） -->
-        <aside id="history" class="glass-card hidden sm:flex flex-col rounded-2xl overflow-hidden flex-shrink-0" style="width: 280px;">
-            <h2 class="text-base font-semibold px-5 pt-5 pb-3 flex items-center gap-2" style="color: var(--text-primary);">
-                <svg class="w-4 h-4" style="color: var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span data-i18n="recentSearches">最近查询</span>
-            </h2>
-            <div class="flex-1 overflow-y-auto scroll-area px-4 pb-4">
-                <ul id="history-list" class="space-y-2"></ul>
-            </div>
-        </aside>
-    </main>
+            <!-- 历史记录面板（桌面） -->
+            <aside id="history" class="glass history-panel hidden sm:flex">
+                <div class="p-5 pb-3 flex-shrink-0">
+                    <h2 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
+                        <svg class="w-4 h-4" style="color: var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span data-i18n="recentSearches">最近查询</span>
+                    </h2>
+                </div>
+                <div class="flex-1 overflow-y-auto scroll-area px-4 pb-4">
+                    <ul id="history-list" class="space-y-2"></ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- 移动端浮动按钮 -->
+    <button type="button" id="fabHistory" class="fab-history" title="历史记录">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+    </button>
+
+    <!-- 移动端历史抽屉遮罩 -->
+    <div id="drawerOverlay" class="drawer-overlay"></div>
 
     <!-- 历史记录抽屉（移动端） -->
-    <div id="historyDrawer" class="history-drawer sm:hidden flex flex-col">
+    <div id="historyDrawer" class="history-drawer sm:hidden">
         <div class="drawer-handle"></div>
-        <div class="flex items-center justify-between px-5 pb-3">
-            <h2 class="text-base font-semibold flex items-center gap-2" style="color: var(--text-primary);">
+        <div class="flex items-center justify-between px-5 pb-3 flex-shrink-0">
+            <h2 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
                 <svg class="w-4 h-4" style="color: var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span data-i18n="recentSearches">最近查询</span>
             </h2>
-            <button type="button" id="closeDrawerBtn" class="icon-btn p-1.5">
+            <button type="button" id="closeDrawerBtn" class="icon-btn p-2">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
-        <div class="flex-1 overflow-y-auto scroll-area px-4 pb-6 max-h-[50vh]">
+        <div class="flex-1 overflow-y-auto scroll-area px-4 pb-6" style="max-height: 55vh;">
             <ul id="history-list-mobile" class="space-y-2"></ul>
         </div>
     </div>
@@ -543,6 +750,7 @@
             const historyListMobile = $('#history-list-mobile');
             const clearInputBtn = $('#clear-input');
             const historyDrawer = $('#historyDrawer');
+            const drawerOverlay = $('#drawerOverlay');
 
             function init() {
                 bindEvents();
@@ -565,8 +773,19 @@
                 document.addEventListener('keydown', handleGlobalKeydown);
                 $('#languageSelect').addEventListener('change', handleLanguageChange);
                 $('#themeToggle').addEventListener('click', toggleTheme);
-                $('#historyToggle').addEventListener('click', () => historyDrawer.classList.add('open'));
-                $('#closeDrawerBtn').addEventListener('click', () => historyDrawer.classList.remove('open'));
+                $('#fabHistory').addEventListener('click', openDrawer);
+                $('#closeDrawerBtn').addEventListener('click', closeDrawer);
+                drawerOverlay.addEventListener('click', closeDrawer);
+            }
+
+            function openDrawer() {
+                historyDrawer.classList.add('open');
+                drawerOverlay.classList.add('show');
+            }
+
+            function closeDrawer() {
+                historyDrawer.classList.remove('open');
+                drawerOverlay.classList.remove('show');
             }
 
             // ===== 暗黑模式 =====
@@ -585,10 +804,12 @@
                     html.classList.add('dark');
                     sunIcon.classList.remove('hidden');
                     moonIcon.classList.add('hidden');
+                    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0f0c29');
                 } else {
                     html.classList.remove('dark');
                     sunIcon.classList.add('hidden');
                     moonIcon.classList.remove('hidden');
+                    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#6366f1');
                 }
             }
 
@@ -609,7 +830,7 @@
                 const btn = e.target.closest('.search-again');
                 const domain = btn.dataset.domain;
                 performWhoisLookup(domain);
-                historyDrawer.classList.remove('open');
+                closeDrawer();
             }
 
             function performWhoisLookup(domain) {
@@ -645,24 +866,24 @@
                     originalInfo.innerHTML = originalInfoHtml;
                     resultDiv.classList.remove('hidden');
                     resultDiv.classList.add('fade-in');
-                    setTimeout(() => resultDiv.classList.remove('fade-in'), 300);
+                    setTimeout(() => resultDiv.classList.remove('fade-in'), 400);
                     updateSearchHistory(domainInput.value.trim());
                 } else if (response.fallback) {
                     // 该后缀无 RDAP 服务，显示 ICANN 查询链接
                     const fallbackUrl = escapeHtml(response.fallback);
                     const errorMsg = response.error ? escapeHtml(response.error) : '';
                     importantInfo.innerHTML = `
-                        <div class="info-card rounded-2xl p-6 sm:p-8 mb-4 text-center fade-in">
-                            <div class="w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: rgba(245, 158, 11, 0.12);">
-                                <svg class="h-7 w-7" style="color: var(--warning);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div class="glass-inner rounded-3xl p-6 sm:p-10 mb-4 text-center fade-in">
+                            <div class="w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center" style="background: rgba(245, 158, 11, 0.15);">
+                                <svg class="h-8 w-8" style="color: var(--warning);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                             </div>
-                            <p class="font-medium mb-1" style="color: var(--text-primary);" data-i18n="noRdapService">该后缀暂无 RDAP 查询服务</p>
-                            ${errorMsg ? `<p class="text-sm mb-4" style="color: var(--text-muted);">${errorMsg}</p>` : '<div class="mb-4"></div>'}
-                            <a href="${fallbackUrl}" target="_blank" rel="noopener noreferrer" class="gradient-btn inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-medium">
+                            <p class="font-semibold mb-2 text-base" style="color: var(--text-primary);" data-i18n="noRdapService">该后缀暂无 RDAP 查询服务</p>
+                            ${errorMsg ? `<p class="text-sm mb-5" style="color: var(--text-muted);">${errorMsg}</p>` : '<div class="mb-5"></div>'}
+                            <a href="${fallbackUrl}" target="_blank" rel="noopener noreferrer" class="btn-gradient inline-flex items-center px-6 py-3 rounded-2xl text-sm font-semibold">
                                 <span data-i18n="icannLookup">前往 ICANN 查询</span>
-                                <svg class="ml-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
                             </a>
@@ -671,7 +892,7 @@
                     originalInfo.innerHTML = '';
                     resultDiv.classList.remove('hidden');
                     resultDiv.classList.add('fade-in');
-                    setTimeout(() => resultDiv.classList.remove('fade-in'), 300);
+                    setTimeout(() => resultDiv.classList.remove('fade-in'), 400);
                     updateSearchHistory(domainInput.value.trim());
                     updateContent();
                 } else if (response.error) {
@@ -804,13 +1025,13 @@
 
                 // 生成重要信息 HTML
                 let importantInfoHtml = `
-                    <div id="importantInfoCard" class="info-card rounded-2xl p-4 sm:p-6 mb-4 fade-in">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
-                                <span class="w-1 h-5 rounded-full" style="background: var(--accent-gradient);"></span>
+                    <div id="importantInfoCard" class="glass-inner rounded-3xl p-4 sm:p-6 mb-4 fade-in">
+                        <div class="flex justify-between items-center mb-5">
+                            <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
                                 <span data-i18n="whoisOverview">WHOIS 信息概览</span>
                             </h3>
-                            <button id="saveScreenshot" class="icon-btn p-2" title="截图">
+                            <button id="saveScreenshot" class="icon-btn p-2.5" title="截图">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
@@ -834,13 +1055,13 @@
                 // 生成原始 RDAP JSON 信息 HTML
                 const rawJson = escapeHtml(JSON.stringify(rdap, null, 2));
                 let originalInfoHtml = `
-                    <div class="info-card rounded-2xl p-4 sm:p-6 fade-in">
-                        <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-base font-bold flex items-center gap-2" style="color: var(--text-primary);">
-                                <span class="w-1 h-5 rounded-full" style="background: var(--accent-gradient);"></span>
+                    <div class="glass-inner rounded-3xl p-4 sm:p-6 fade-in">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
                                 <span data-i18n="originalRdap">RDAP 原始信息</span>
                             </h3>
-                            <button id="copyOriginalInfo" class="icon-btn p-2" data-clipboard-target="#originalInfoContent" title="复制">
+                            <button id="copyOriginalInfo" class="icon-btn p-2.5" data-clipboard-target="#originalInfoContent" title="复制">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
@@ -891,16 +1112,16 @@
                 const historyHtml = history.length
                     ? history.map(item => `
                         <li class="history-item">
-                            <span class="text-xs sm:text-sm block mb-1.5" style="color: var(--text-secondary);">${escapeHtml(item)}</span>
-                            <button class="search-again link-btn flex items-center gap-1" data-domain="${escapeHtml(item)}">
+                            <span class="text-sm block mb-2 font-medium" style="color: var(--text-secondary);">${escapeHtml(item)}</span>
+                            <button class="search-again link-btn" data-domain="${escapeHtml(item)}">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                                 <span data-i18n="searchAgain">再次查询</span>
                             </button>
                         </li>
                     `).join('')
-                    : `<li class="text-xs sm:text-sm text-center py-4" style="color: var(--text-muted);" data-i18n="noHistory">暂无历史查询记录</li>`;
+                    : `<li class="text-sm text-center py-8" style="color: var(--text-muted);" data-i18n="noHistory">暂无历史查询记录</li>`;
                 historyList.innerHTML = historyHtml;
                 historyListMobile.innerHTML = historyHtml;
             }
@@ -927,9 +1148,9 @@
             function showError(message) {
                 importantInfo.innerHTML = '';
                 originalInfo.innerHTML = `
-                    <div class="info-card rounded-2xl p-6 sm:p-8 text-center fade-in">
-                        <div class="w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: rgba(239, 68, 68, 0.12);">
-                            <svg class="h-7 w-7" style="color: var(--danger);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="glass-inner rounded-3xl p-6 sm:p-10 text-center fade-in">
+                        <div class="w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center" style="background: rgba(239, 68, 68, 0.15);">
+                            <svg class="h-8 w-8" style="color: var(--danger);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                         </div>
