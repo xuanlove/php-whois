@@ -1661,7 +1661,7 @@
                 // 注册局域名 ID
                 if (rdap.handle) temp.registryDomainId = escapeHtml(rdap.handle);
 
-                // 事件：注册、过期、更新
+                // 事件：注册、过期、更新、RDAP 数据库更新
                 if (Array.isArray(rdap.events)) {
                     rdap.events.forEach(function (ev) {
                         if (!ev.eventDate) return;
@@ -1672,7 +1672,10 @@
                             rawDates.expiryDate = ev.eventDate;
                             temp.expiryDate = formatDate(ev.eventDate);
                         } else if (ev.eventAction === 'last changed') {
+                            rawDates.updatedDate = ev.eventDate;
                             temp.updatedDate = formatDate(ev.eventDate);
+                        } else if (ev.eventAction === 'last update of RDAP database') {
+                            temp.rdapUpdated = formatDate(ev.eventDate);
                         }
                     });
                 }
@@ -1682,52 +1685,141 @@
                     temp.status = rdap.status.map(escapeHtml).join('<br>');
                 }
 
-                // 域名服务器
+                // 域名服务器（含 IP 地址，若提供）
                 if (Array.isArray(rdap.nameservers) && rdap.nameservers.length) {
                     const ns = rdap.nameservers.map(function (n) {
-                        return n.unicodeName || n.ldhName || '';
+                        let name = n.unicodeName || n.ldhName || '';
+                        if (!name) return '';
+                        // 附加 IP 地址（部分 RDAP 服务器提供）
+                        const ips = [];
+                        if (Array.isArray(n.ipAddresses)) {
+                            n.ipAddresses.forEach(function (ip) {
+                                ips.push(ip);
+                            });
+                        } else if (n.ipAddresses && typeof n.ipAddresses === 'object') {
+                            ['v4', 'v6'].forEach(function (ver) {
+                                if (Array.isArray(n.ipAddresses[ver])) {
+                                    n.ipAddresses[ver].forEach(function (ip) { ips.push(ip); });
+                                }
+                            });
+                        }
+                        return ips.length ? name + ' (' + ips.join(', ') + ')' : name;
                     }).filter(Boolean);
                     if (ns.length) temp.nameServers = ns.map(escapeHtml).join('<br>');
                 }
 
-                // DNSSEC
-                if (rdap.secureDNS && typeof rdap.secureDNS.delegationSigned !== 'undefined') {
-                    const signed = rdap.secureDNS.delegationSigned;
+                // DNSSEC（含 DS 记录详情）
+                if (rdap.secureDNS) {
+                    const signed = rdap.secureDNS.delegationSigned === true;
                     const key = signed ? 'dnssecSigned' : 'dnssecUnsigned';
-                    temp.dnssec = `<span data-i18n="${key}">${i18next.t(key, { defaultValue: signed ? '已签名' : '未签名' })}</span>`;
+                    let dnssecHtml = `<span data-i18n="${key}">${i18next.t(key, { defaultValue: signed ? '已签名' : '未签名' })}</span>`;
+                    // DS 记录
+                    if (signed && Array.isArray(rdap.secureDNS.dsData) && rdap.secureDNS.dsData.length) {
+                        const ds = rdap.secureDNS.dsData.map(function (d) {
+                            const parts = [];
+                            if (d.keyTag) parts.push('keyTag=' + d.keyTag);
+                            if (d.algorithm) parts.push('alg=' + d.algorithm);
+                            if (d.digestType) parts.push('digestType=' + d.digestType);
+                            if (d.digest) parts.push('digest=' + d.digest.substring(0, 16) + '...');
+                            return parts.join(' ');
+                        });
+                        dnssecHtml += '<br><span style="font-size:0.8em;opacity:0.8;">' + ds.map(escapeHtml).join('<br>') + '</span>';
+                    }
+                    temp.dnssec = dnssecHtml;
                 }
 
-                // 实体：注册商、注册人（含嵌套实体）
+                // 备注（remarks）
+                if (Array.isArray(rdap.remarks) && rdap.remarks.length) {
+                    const remarks = rdap.remarks.map(function (r) {
+                        return Array.isArray(r.description) ? r.description.join('\n') : (r.description || '');
+                    }).filter(Boolean).join('\n');
+                    if (remarks) temp.remarks = escapeHtml(remarks).replace(/\n/g, '<br>');
+                }
+
+                // WHOIS 服务器（port43）
+                if (rdap.port43) temp.whoisServer = escapeHtml(rdap.port43);
+
+                // 实体：注册商、注册人、技术、管理、滥用（含嵌套实体）
+                const contacts = {};
                 if (Array.isArray(rdap.entities)) {
-                    rdap.entities.forEach(function (entity) {
+                    function processEntity(entity, isNested) {
                         const roles = entity.roles || [];
                         const vcard = extractVcard(entity.vcardArray);
-                        if (roles.includes('registrar')) {
-                            if (vcard.fn) temp.registrar = escapeHtml(vcard.fn);
-                            if (entity.handle) temp.ianaId = escapeHtml(entity.handle);
-                        }
-                        if (roles.includes('registrant')) {
-                            if (vcard.fn) temp.registrant = escapeHtml(vcard.fn);
-                            if (vcard.email) temp.registrantEmail = escapeHtml(vcard.email);
-                        }
-                        // 嵌套实体（注册人可能在注册商的子实体中）
+                        roles.forEach(function (role) {
+                            if (!contacts[role]) {
+                                contacts[role] = {
+                                    vcard: vcard,
+                                    handle: entity.handle || ''
+                                };
+                            }
+                        });
+                        // 递归处理嵌套实体
                         if (Array.isArray(entity.entities)) {
                             entity.entities.forEach(function (sub) {
-                                const subRoles = sub.roles || [];
-                                const subVcard = extractVcard(sub.vcardArray);
-                                if (subRoles.includes('registrant')) {
-                                    if (subVcard.fn) temp.registrant = escapeHtml(subVcard.fn);
-                                    if (subVcard.email) temp.registrantEmail = escapeHtml(subVcard.email);
-                                }
+                                processEntity(sub, true);
                             });
                         }
-                    });
+                    }
+                    rdap.entities.forEach(function (entity) { processEntity(entity, false); });
+                }
+
+                // 注册商信息
+                if (contacts.registrar) {
+                    const v = contacts.registrar.vcard;
+                    if (v.fn || v.org) temp.registrar = escapeHtml(v.org || v.fn);
+                    if (contacts.registrar.handle) temp.ianaId = escapeHtml(contacts.registrar.handle);
+                    // 注册商邮箱
+                    if (v.email) temp.registrarEmail = escapeHtml(v.email);
+                    // 注册商电话
+                    if (v.tel) temp.registrarPhone = escapeHtml(v.tel);
+                    // 注册商地址
+                    if (v.address) temp.registrarAddress = escapeHtml(v.address).replace(/\n/g, '<br>');
+                }
+
+                // 注册人信息
+                if (contacts.registrant) {
+                    const v = contacts.registrant.vcard;
+                    if (v.org || v.fn) temp.registrant = escapeHtml(v.org || v.fn);
+                    if (v.email) temp.registrantEmail = escapeHtml(v.email);
+                    if (v.tel) temp.registrantPhone = escapeHtml(v.tel);
+                    if (v.address) temp.registrantAddress = escapeHtml(v.address).replace(/\n/g, '<br>');
+                }
+
+                // 管理联系人
+                if (contacts.administrative) {
+                    const v = contacts.administrative.vcard;
+                    const parts = [];
+                    if (v.fn || v.org) parts.push(v.fn || v.org);
+                    if (v.email) parts.push(v.email);
+                    if (v.tel) parts.push(v.tel);
+                    if (parts.length) temp.adminContact = escapeHtml(parts.join(' / '));
+                }
+
+                // 技术联系人
+                if (contacts.technical) {
+                    const v = contacts.technical.vcard;
+                    const parts = [];
+                    if (v.fn || v.org) parts.push(v.fn || v.org);
+                    if (v.email) parts.push(v.email);
+                    if (v.tel) parts.push(v.tel);
+                    if (parts.length) temp.techContact = escapeHtml(parts.join(' / '));
+                }
+
+                // 滥用投诉联系人
+                if (contacts.abuse) {
+                    const v = contacts.abuse.vcard;
+                    const parts = [];
+                    if (v.fn || v.org) parts.push(v.fn || v.org);
+                    if (v.email) parts.push(v.email);
+                    if (v.tel) parts.push(v.tel);
+                    if (parts.length) temp.abuseContact = escapeHtml(parts.join(' / '));
                 }
 
                 // 按固定顺序构建显示字段
-                const fieldOrder = ['domainName', 'registrar', 'ianaId', 'registryDomainId',
-                    'creationDate', 'expiryDate', 'updatedDate', 'status',
-                    'nameServers', 'dnssec', 'registrant', 'registrantEmail'];
+                const fieldOrder = ['domainName', 'registrar', 'ianaId', 'registrarEmail', 'registrarPhone', 'registrarAddress',
+                    'registryDomainId', 'creationDate', 'expiryDate', 'updatedDate', 'rdapUpdated', 'status',
+                    'nameServers', 'dnssec', 'registrant', 'registrantEmail', 'registrantPhone', 'registrantAddress',
+                    'adminContact', 'techContact', 'abuseContact', 'remarks', 'whoisServer'];
                 const info = {};
                 fieldOrder.forEach(function (key) {
                     if (temp[key]) info[key] = temp[key];
@@ -2050,6 +2142,14 @@
                                 'dnssec': 'DNSSEC',
                                 'registrant': '注册人',
                                 'registrantEmail': '注册人邮箱',
+                                'registrantPhone': '注册人电话',
+                                'registrantAddress': '注册人地址',
+                                'registrarEmail': '注册商邮箱',
+                                'registrarPhone': '注册商电话',
+                                'registrarAddress': '注册商地址',
+                                'rdapUpdated': 'RDAP 数据更新',
+                                'remarks': '备注',
+                                'whoisServer': 'WHOIS 服务器',
                                 'error': '错误: {{message}}',
                                 'requestFailed': '请求失败: {{status}}',
                                 'originalRdap': 'RDAP 原始信息',
@@ -2116,6 +2216,14 @@
                                 'dnssec': 'DNSSEC',
                                 'registrant': '註冊人',
                                 'registrantEmail': '註冊人郵箱',
+                                'registrantPhone': '註冊人電話',
+                                'registrantAddress': '註冊人地址',
+                                'registrarEmail': '註冊商郵箱',
+                                'registrarPhone': '註冊商電話',
+                                'registrarAddress': '註冊商地址',
+                                'rdapUpdated': 'RDAP 資料更新',
+                                'remarks': '備註',
+                                'whoisServer': 'WHOIS 伺服器',
                                 'error': '錯誤: {{message}}',
                                 'requestFailed': '請求失敗: {{status}}',
                                 'originalRdap': 'RDAP 原始資訊',
@@ -2182,6 +2290,14 @@
                                 'dnssec': 'DNSSEC',
                                 'registrant': 'Registrant',
                                 'registrantEmail': 'Registrant Email',
+                                'registrantPhone': 'Registrant Phone',
+                                'registrantAddress': 'Registrant Address',
+                                'registrarEmail': 'Registrar Email',
+                                'registrarPhone': 'Registrar Phone',
+                                'registrarAddress': 'Registrar Address',
+                                'rdapUpdated': 'RDAP Database Updated',
+                                'remarks': 'Remarks',
+                                'whoisServer': 'WHOIS Server',
                                 'error': 'Error: {{message}}',
                                 'requestFailed': 'Request failed: {{status}}',
                                 'originalRdap': 'Original RDAP Information',
@@ -2248,6 +2364,14 @@
                                 'dnssec': 'DNSSEC',
                                 'registrant': 'Регистрант',
                                 'registrantEmail': 'Email регистранта',
+                                'registrantPhone': 'Телефон регистранта',
+                                'registrantAddress': 'Адрес регистранта',
+                                'registrarEmail': 'Email регистратора',
+                                'registrarPhone': 'Телефон регистратора',
+                                'registrarAddress': 'Адрес регистратора',
+                                'rdapUpdated': 'Обновление БД RDAP',
+                                'remarks': 'Примечания',
+                                'whoisServer': 'Сервер WHOIS',
                                 'error': 'Ошибка: {{message}}',
                                 'requestFailed': 'Запрос не выполнен: {{status}}',
                                 'originalRdap': 'Оригинальная информация RDAP',
@@ -2314,6 +2438,14 @@
                                 'dnssec': 'DNSSEC',
                                 'registrant': 'Registrante',
                                 'registrantEmail': 'Email del registrante',
+                                'registrantPhone': 'Teléfono del registrante',
+                                'registrantAddress': 'Dirección del registrante',
+                                'registrarEmail': 'Email del registrador',
+                                'registrarPhone': 'Teléfono del registrador',
+                                'registrarAddress': 'Dirección del registrador',
+                                'rdapUpdated': 'Actualización BD RDAP',
+                                'remarks': 'Observaciones',
+                                'whoisServer': 'Servidor WHOIS',
                                 'error': 'Error: {{message}}',
                                 'requestFailed': 'Solicitud fallida: {{status}}',
                                 'originalRdap': 'Información original de RDAP',
