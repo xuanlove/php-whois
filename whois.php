@@ -215,6 +215,8 @@ function normalizeDomain($domain) {
     $domain = trim($domain);
     $domain = preg_replace('#^https?://#i', '', $domain);
     $domain = preg_replace('#^www\.#i', '', $domain);
+    // IPv6 地址含冒号，需在剥离 URL 路径前先检测，否则会被截断
+    if (filter_var($domain, FILTER_VALIDATE_IP)) return $domain;
     $domain = preg_replace('#[/:].*$#', '', $domain);
     if ($domain === '') return '';
     if (filter_var($domain, FILTER_VALIDATE_IP)) return $domain;
