@@ -5,850 +5,1066 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="title">WHOIS 查询</title>
+    <link rel="stylesheet" href="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/tailwindcss/2.2.19/tailwind.min.css">
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/dom-to-image/2.6.0/dom-to-image.min.js"></script>
+    <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/clipboard.js/2.0.10/clipboard.min.js"></script>
+    <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/i18next/21.6.12/i18next.min.js"></script>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery-i18next/1.2.1/jquery-i18next.min.js"></script>
     <style>
-        :root {
-            --bg: #f4f5f7;
-            --card: #ffffff;
-            --text: #1f2937;
-            --text-muted: #6b7280;
-            --border: #e5e7eb;
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --primary-soft: #eef2ff;
-            --success: #10b981;
-            --success-soft: #ecfdf5;
-            --danger: #ef4444;
-            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-            --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
-            --radius: 14px;
-        }
-
-        * { box-sizing: border-box; }
-
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-        }
-
+        html,
         body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-            -webkit-font-smoothing: antialiased;
-            display: flex;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        @keyframes rotate {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-spinner {
+            animation: rotate 1.5s linear infinite;
+        }
+
+        .result-container {
+            scrollbar-width: thin;
+            scrollbar-color: #4B5563 #E5E7EB;
+        }
+
+        .result-container::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .result-container::-webkit-scrollbar-track {
+            background: #E5E7EB;
+        }
+
+        .result-container::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 20px;
+            border: 3px solid #E5E7EB;
+        }
+
+        .history-card {
+            width: 300px;
+            max-height: 800px;
             flex-direction: column;
         }
 
-        /* 顶栏：毛玻璃 */
-        .topbar {
-            position: sticky;
-            top: 0;
-            z-index: 30;
-            backdrop-filter: saturate(180%) blur(14px);
-            -webkit-backdrop-filter: saturate(180%) blur(14px);
-            background: rgba(255, 255, 255, 0.78);
-            border-bottom: 1px solid var(--border);
-            padding: 14px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
+        .history-card>div {
+            scrollbar-width: thin;
+            scrollbar-color: #4B5563 #E5E7EB;
         }
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text);
+        .history-card>div::-webkit-scrollbar {
+            width: 8px;
         }
 
-        .brand-logo {
-            width: 32px;
-            height: 32px;
-            border-radius: 9px;
-            background: linear-gradient(135deg, #6366f1, #4f46e5);
+        .history-card>div::-webkit-scrollbar-track {
+            background: #E5E7EB;
+        }
+
+        .history-card>div::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 20px;
+            border: 2px solid #E5E7EB;
+        }
+
+        .watermark {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4B5563;
+            /* Tailwind's gray-600 */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .language-switcher {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .tld-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #fff;
-            font-size: 14px;
-            font-weight: 700;
-            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
-        }
-
-        .topbar-actions { display: flex; align-items: center; gap: 8px; }
-
-        .lang-select, .history-toggle {
-            height: 36px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: #fff;
-            color: var(--text);
-            font-size: 14px;
-            padding: 0 10px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-        .lang-select:hover, .history-toggle:hover { border-color: var(--primary); color: var(--primary); }
-        .lang-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
-
-        .history-toggle { display: none; align-items: center; gap: 6px; }
-
-        /* 主区域：桌面双栏 */
-        .layout {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 320px;
-            gap: 20px;
-            padding: 20px;
-            max-width: 1180px;
-            width: 100%;
-            margin: 0 auto;
-            min-height: 0;
-        }
-
-        .main-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-
-        /* 搜索卡片 */
-        .search-card {
-            background: var(--card);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            padding: 18px;
-        }
-        .search-wrap { display: flex; gap: 10px; position: relative; }
-        .search-input {
-            flex: 1;
-            height: 48px;
-            border-radius: 12px;
-            border: 1.5px solid var(--border);
-            padding: 0 44px 0 16px;
-            font-size: 15px;
-            color: var(--text);
-            background: #fff;
-            transition: all 0.15s ease;
-        }
-        .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
-        .search-clear {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            color: var(--text-muted);
-            width: 22px; height: 22px;
-            display: none;
-            align-items: center; justify-content: center;
-            border-radius: 50%;
-        }
-        .search-clear:hover { background: var(--border); color: var(--text); }
-        .search-clear.visible { display: flex; }
-
-        .search-btn {
-            height: 48px;
-            padding: 0 22px;
-            border-radius: 12px;
-            border: none;
-            background: var(--primary);
-            color: #fff;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.15s ease;
-            white-space: nowrap;
-        }
-        .search-btn:hover:not(:disabled) { background: var(--primary-hover); }
-        .search-btn:disabled { opacity: 0.65; cursor: not-allowed; }
-
-        .spinner {
-            width: 16px; height: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            display: none;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* 结果区 */
-        .result-area { display: flex; flex-direction: column; gap: 16px; }
-
-        .empty-state {
-            background: var(--card);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-sm);
-            padding: 60px 24px;
-            text-align: center;
-            color: var(--text-muted);
-        }
-        .empty-icon {
-            width: 56px; height: 56px;
-            margin: 0 auto 16px;
-            border-radius: 16px;
-            background: var(--primary-soft);
-            color: var(--primary);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .empty-state h3 { margin: 0 0 6px; font-size: 16px; color: var(--text); font-weight: 600; }
-        .empty-state p { margin: 0; font-size: 14px; }
-
-        .overview-card, .raw-card {
-            background: var(--card);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-
-        .card-head {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .card-head h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            font-size: 12px;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 999px;
-            background: var(--success-soft);
-            color: var(--success);
-        }
-
-        .info-grid { padding: 8px 20px 16px; }
-        .info-row {
-            display: grid;
-            grid-template-columns: 130px 1fr;
-            gap: 12px;
-            padding: 10px 0;
-            border-bottom: 1px dashed var(--border);
-            align-items: start;
-        }
-        .info-row:last-child { border-bottom: none; }
-        .info-key { font-size: 13px; color: var(--text-muted); font-weight: 500; }
-        .info-val { font-size: 14px; color: var(--text); word-break: break-all; line-height: 1.6; }
-
-        .pill {
-            display: inline-block;
-            background: var(--primary-soft);
-            color: var(--primary);
-            font-size: 12px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 6px;
-            margin-left: 6px;
-        }
-        .pill.green { background: var(--success-soft); color: var(--success); }
-
-        .raw-toggle {
-            background: transparent;
-            border: none;
-            color: var(--primary);
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            border-radius: 8px;
-        }
-        .raw-toggle:hover { background: var(--primary-soft); }
-        .chevron { transition: transform 0.2s ease; }
-        .raw-toggle.expanded .chevron { transform: rotate(180deg); }
-
-        .raw-body {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-        .raw-body.open { max-height: 800px; }
-        .raw-content {
-            margin: 0;
-            padding: 16px 20px;
-            font-family: "SF Mono", "Monaco", "Consolas", monospace;
-            font-size: 12.5px;
-            line-height: 1.7;
-            color: var(--text);
-            white-space: pre-wrap;
-            word-break: break-all;
-            background: #fafafa;
-            max-height: 480px;
-            overflow-y: auto;
-        }
-
-        .error-box {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #b91c1c;
-            padding: 14px 18px;
-            border-radius: 12px;
-            font-size: 14px;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-        }
-
-        /* 历史侧边栏 */
-        .history-panel {
-            background: var(--card);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            align-self: start;
-            position: sticky;
-            top: 76px;
-            max-height: calc(100vh - 96px);
-        }
-        .history-head {
-            padding: 16px 18px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .history-head h3 { margin: 0; font-size: 14px; font-weight: 700; }
-        .history-clear {
-            font-size: 12px;
-            color: var(--danger);
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 6px;
-        }
-        .history-clear:hover { background: #fef2f2; }
-
-        .history-list {
-            list-style: none;
-            margin: 0;
-            padding: 8px;
-            overflow-y: auto;
-            flex: 1;
-        }
-        .history-item {
-            padding: 10px 12px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.12s ease;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-        }
-        .history-item:hover { background: var(--primary-soft); }
-        .history-domain { font-size: 13.5px; color: var(--text); font-weight: 500; word-break: break-all; }
-        .history-time { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
-        .history-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 30px 12px; }
-
-        /* 移动端历史抽屉 */
-        .drawer-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 40;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.25s ease, visibility 0.25s ease;
-        }
-        .drawer-overlay.open { opacity: 1; visibility: visible; }
-
-        .history-drawer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--card);
-            border-radius: 20px 20px 0 0;
-            box-shadow: var(--shadow-lg);
             z-index: 50;
-            max-height: 70vh;
-            display: flex;
-            flex-direction: column;
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .history-drawer.open { transform: translateY(0); }
-        .drawer-handle {
-            width: 40px; height: 4px;
-            background: var(--border);
-            border-radius: 999px;
-            margin: 10px auto 4px;
-        }
-        .drawer-head {
-            padding: 8px 18px 14px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
         }
 
-        /* 响应式 */
-        @media (max-width: 860px) {
-            .layout { grid-template-columns: 1fr; padding: 14px; gap: 14px; }
-            .history-panel { display: none; }
-            .history-toggle { display: flex; }
-            .info-row { grid-template-columns: 110px 1fr; gap: 8px; }
-            .search-btn span.label { display: none; }
-            .search-btn { padding: 0 16px; }
-            .topbar { padding: 12px 14px; }
+        .tld-modal {
+            background-color: #fff;
+            width: 90%;
+            max-width: 560px;
+            max-height: 80vh;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        @media (max-width: 480px) {
-            .info-row { grid-template-columns: 1fr; gap: 2px; }
-            .info-key { font-size: 12px; }
-            .brand span { display: none; }
+
+        .tld-list {
+            scrollbar-width: thin;
+            scrollbar-color: #4B5563 #E5E7EB;
+        }
+
+        .tld-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .tld-list::-webkit-scrollbar-track {
+            background: #E5E7EB;
+        }
+
+        .tld-list::-webkit-scrollbar-thumb {
+            background-color: #4B5563;
+            border-radius: 20px;
+            border: 2px solid #E5E7EB;
+        }
+
+        @media (max-width: 640px) {
+            .result-container {
+                padding-bottom: 65px;
+            }
         }
     </style>
+    <!-- by: danran  -->
+    <!-- wechat: yyy5858588  -->
+    <!-- date: 2024-09-07  -->
 </head>
 
-<body>
-    <header class="topbar">
-        <div class="brand">
-            <div class="brand-logo">W</div>
-            <span data-i18n="title">WHOIS 查询</span>
-        </div>
-        <div class="topbar-actions">
-            <button class="history-toggle" id="historyToggle">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
-                <span data-i18n="history">历史</span>
-            </button>
-            <select class="lang-select" id="langSelect">
-                <option value="zh-CN">简体中文</option>
-                <option value="zh-TW">繁體中文</option>
-                <option value="en">English</option>
-                <option value="ru">Русский</option>
-                <option value="es">Español</option>
-            </select>
-        </div>
-    </header>
-
-    <div class="layout">
-        <main class="main-col">
-            <div class="search-card">
-                <form id="whoisForm" class="search-wrap">
-                    <input type="text" id="domainInput" class="search-input" required
-                        data-i18n="[placeholder]inputPlaceholder" placeholder="请输入域名或 IP 地址" autocomplete="off">
-                    <button type="button" class="search-clear" id="clearBtn" aria-label="clear">
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+<body class="bg-gray-100 flex justify-center p-0 sm:p-4 h-screen">
+    <div class="language-switcher">
+        <select id="languageSelect"
+            class="bg-white border border-gray-300 rounded-md text-gray-700 py-1 px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁體中文</option>
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+            <option value="es">Español</option>
+        </select>
+    </div>
+    <div class="flex flex-grow max-w-5xl w-full">
+        <div class="bg-white p-2 sm:p-6 md:p-8 rounded-lg shadow-md flex flex-col w-full h-full">
+            <h1 class="text-2xl sm:text-3xl font-bold text-left sm:text-center mb-4 sm:mb-6 text-gray-800"
+                data-i18n="title">WHOIS 查询</h1>
+            <form id="whois-form" class="mb-4">
+                <div class="flex relative">
+                    <input type="text" id="domain" name="domain" required placeholder="请输入IP或者域名"
+                        data-i18n="[placeholder]inputPlaceholder"
+                        class="flex-grow px-3 py-2 bg-white border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <button type="button" id="clear-input"
+                        class="absolute right-24 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none mr-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                clip-rule="evenodd" />
+                        </svg>
                     </button>
-                    <button type="submit" class="search-btn" id="submitBtn">
-                        <span class="spinner" id="spinner"></span>
-                        <span class="label" data-i18n="search">查询</span>
+                    <button type="submit" id="submit-btn"
+                        class="flex items-center justify-center w-24 border border-transparent rounded-r-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                        <span data-i18n="search">查询</span>
+                        <svg class="loading-spinner ml-2 h-5 w-5 hidden" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                                fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
                     </button>
-                </form>
+                </div>
+            </form>
+            <div class="mb-4 flex justify-end">
+                <button type="button" id="openTldBtn"
+                    class="text-sm text-indigo-600 hover:text-indigo-800 focus:outline-none"
+                    data-i18n="knownTlds">已知域名后缀</button>
             </div>
-
-            <div class="result-area" id="resultArea">
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                    </div>
-                    <h3 data-i18n="emptyTitle">开始你的第一次查询</h3>
-                    <p data-i18n="emptyDesc">输入域名或 IP 地址，查看 WHOIS 信息</p>
+            <div id="resultDiv" class="hidden flex-grow overflow-hidden">
+                <div class="h-full overflow-y-auto result-container pb-16 sm:pb-0">
+                    <div id="importantInfo"></div>
+                    <div id="originalInfo"></div>
                 </div>
             </div>
-        </main>
-
-        <!-- 桌面侧边栏 -->
-        <aside class="history-panel" id="historyPanel">
-            <div class="history-head">
-                <h3 data-i18n="history">查询历史</h3>
-                <button class="history-clear" id="clearHistory" data-i18n="clearHistory">清空</button>
-            </div>
-            <ul class="history-list" id="historyList"></ul>
-        </aside>
-    </div>
-
-    <!-- 移动端抽屉 -->
-    <div class="drawer-overlay" id="drawerOverlay"></div>
-    <div class="history-drawer" id="historyDrawer">
-        <div class="drawer-handle"></div>
-        <div class="drawer-head">
-            <h3 data-i18n="history">查询历史</h3>
-            <button class="history-clear" id="clearHistoryMobile" data-i18n="clearHistory">清空</button>
         </div>
-        <ul class="history-list" id="historyListMobile"></ul>
+
+        <div id="history" class="history-card bg-white shadow-md ml-0 sm:ml-4 hidden sm:flex flex-col">
+            <h2 class="text-lg font-semibold p-4 text-gray-800" data-i18n="recentSearches">最近查询</h2>
+            <div class="flex-grow overflow-y-auto px-4 pb-4">
+                <ul id="history-list" class="space-y-2"></ul>
+            </div>
+        </div>
     </div>
+
+    <div id="tldModal" class="tld-modal-overlay hidden">
+        <div class="tld-modal shadow-xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h3 class="text-lg font-bold text-gray-800" data-i18n="knownTlds">已知域名后缀</h3>
+                <button type="button" id="closeTldBtn" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 border-b border-gray-200">
+                <input type="text" id="tldFilter" data-i18n="[placeholder]tldFilterPlaceholder"
+                    placeholder="搜索域名后缀或 WHOIS 服务器"
+                    class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                <p id="tldCount" class="text-xs text-gray-500 mt-2"></p>
+            </div>
+            <div id="tldList" class="tld-list flex-grow overflow-y-auto p-4 space-y-1"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        $(document).ready(function () {
             const HISTORY_KEY = 'whoisHistory';
-            const MAX_HISTORY = 50;
-            const STORAGE_LANG = 'whoisLang';
+            const MAX_HISTORY = 500;
 
-            const i18n = {
-                'zh-CN': {
-                    title: 'WHOIS 查询', inputPlaceholder: '请输入域名或 IP 地址', search: '查询', searching: '查询中',
-                    history: '查询历史', clearHistory: '清空', clearConfirm: '确定清空所有历史记录吗？',
-                    emptyTitle: '开始你的第一次查询', emptyDesc: '输入域名或 IP 地址，查看 WHOIS 信息',
-                    overview: '信息概览', rawInfo: '原始 WHOIS', expandRaw: '展开原文', collapseRaw: '收起原文',
-                    noHistory: '暂无查询历史',
-                    domainName: '域名', registrar: '注册商', whoisServer: 'WHOIS 服务器',
-                    updatedDate: '更新日期', creationDate: '注册日期', expiryDate: '过期日期',
-                    status: '状态', nameServers: '域名服务器', dnssec: 'DNSSEC',
-                    registrant: '注册人', registrantEmail: '注册人邮箱', registryDomainId: '注册局ID',
-                    years: '年', months: '个月', days: '天', registered: '已注册', remaining: '剩余',
-                    errorPrefix: '错误', requestFailed: '请求失败'
-                },
-                'zh-TW': {
-                    title: 'WHOIS 查詢', inputPlaceholder: '請輸入域名或 IP 地址', search: '查詢', searching: '查詢中',
-                    history: '查詢歷史', clearHistory: '清空', clearConfirm: '確定清空所有歷史記錄嗎？',
-                    emptyTitle: '開始你的第一次查詢', emptyDesc: '輸入域名或 IP 地址，查看 WHOIS 信息',
-                    overview: '信息概覽', rawInfo: '原始 WHOIS', expandRaw: '展開原文', collapseRaw: '收起原文',
-                    noHistory: '暫無查詢歷史',
-                    domainName: '域名', registrar: '註冊商', whoisServer: 'WHOIS 伺服器',
-                    updatedDate: '更新日期', creationDate: '註冊日期', expiryDate: '過期日期',
-                    status: '狀態', nameServers: '域名伺服器', dnssec: 'DNSSEC',
-                    registrant: '註冊人', registrantEmail: '註冊人郵箱', registryDomainId: '註冊局ID',
-                    years: '年', months: '個月', days: '天', registered: '已註冊', remaining: '剩餘',
-                    errorPrefix: '錯誤', requestFailed: '請求失敗'
-                },
-                'en': {
-                    title: 'WHOIS Lookup', inputPlaceholder: 'Enter domain or IP address', search: 'Search', searching: 'Searching',
-                    history: 'History', clearHistory: 'Clear', clearConfirm: 'Clear all history?',
-                    emptyTitle: 'Start your first lookup', emptyDesc: 'Enter a domain or IP to view WHOIS info',
-                    overview: 'Overview', rawInfo: 'Raw WHOIS', expandRaw: 'Expand', collapseRaw: 'Collapse',
-                    noHistory: 'No history yet',
-                    domainName: 'Domain', registrar: 'Registrar', whoisServer: 'WHOIS Server',
-                    updatedDate: 'Updated', creationDate: 'Created', expiryDate: 'Expires',
-                    status: 'Status', nameServers: 'Name Servers', dnssec: 'DNSSEC',
-                    registrant: 'Registrant', registrantEmail: 'Registrant Email', registryDomainId: 'Registry ID',
-                    years: 'y', months: 'mo', days: 'd', registered: 'registered', remaining: 'remaining',
-                    errorPrefix: 'Error', requestFailed: 'Request failed'
-                },
-                'ru': {
-                    title: 'WHOIS Поиск', inputPlaceholder: 'Введите домен или IP', search: 'Поиск', searching: 'Поиск...',
-                    history: 'История', clearHistory: 'Очистить', clearConfirm: 'Очистить всю историю?',
-                    emptyTitle: 'Начните первый поиск', emptyDesc: 'Введите домен или IP для просмотра WHOIS',
-                    overview: 'Обзор', rawInfo: 'Оригинал WHOIS', expandRaw: 'Развернуть', collapseRaw: 'Свернуть',
-                    noHistory: 'История пуста',
-                    domainName: 'Домен', registrar: 'Регистратор', whoisServer: 'WHOIS сервер',
-                    updatedDate: 'Обновлён', creationDate: 'Создан', expiryDate: 'Истекает',
-                    status: 'Статус', nameServers: 'DNS серверы', dnssec: 'DNSSEC',
-                    registrant: 'Регистрант', registrantEmail: 'Email регистранта', registryDomainId: 'ID реестра',
-                    years: 'л', months: 'мес', days: 'д', registered: 'зарегистрирован', remaining: 'осталось',
-                    errorPrefix: 'Ошибка', requestFailed: 'Ошибка запроса'
-                },
-                'es': {
-                    title: 'Consulta WHOIS', inputPlaceholder: 'Ingrese dominio o IP', search: 'Buscar', searching: 'Buscando...',
-                    history: 'Historial', clearHistory: 'Limpiar', clearConfirm: '¿Limpiar todo el historial?',
-                    emptyTitle: 'Inicie su primera consulta', emptyDesc: 'Ingrese dominio o IP para ver WHOIS',
-                    overview: 'Resumen', rawInfo: 'WHOIS original', expandRaw: 'Expandir', collapseRaw: 'Contraer',
-                    noHistory: 'Sin historial',
-                    domainName: 'Dominio', registrar: 'Registrador', whoisServer: 'Servidor WHOIS',
-                    updatedDate: 'Actualizado', creationDate: 'Creado', expiryDate: 'Expira',
-                    status: 'Estado', nameServers: 'Servidores DNS', dnssec: 'DNSSEC',
-                    registrant: 'Registrante', registrantEmail: 'Email registrante', registryDomainId: 'ID registro',
-                    years: 'a', months: 'm', days: 'd', registered: 'registrado', remaining: 'restante',
-                    errorPrefix: 'Error', requestFailed: 'Error de solicitud'
+            let tldMap = null; // 缓存 whois.json 中的 TLD -> WHOIS 服务器映射
+
+            const $form = $('#whois-form');
+            const $domain = $('#domain');
+            const $submitBtn = $('#submit-btn');
+            const $resultDiv = $('#resultDiv');
+            const $importantInfo = $('#importantInfo');
+            const $originalInfo = $('#originalInfo');
+            const $historyList = $('#history-list');
+            const $clearInput = $('#clear-input');
+            const $tldModal = $('#tldModal');
+            const $tldList = $('#tldList');
+            const $tldFilter = $('#tldFilter');
+            const $tldCount = $('#tldCount');
+
+            function init() {
+                bindEvents();
+                initClipboard();
+                checkUrlForDomain();
+                updateSearchHistory();
+                toggleClearButton();
+                initI18n();
+                loadTldMap(function () { }); // 后台预加载，供提交时校验后缀使用
+            }
+
+            function bindEvents() {
+                $form.submit(handleFormSubmit);
+                $(document).on('click', '.search-again', handleSearchAgain);
+                $(document).on('click', '#saveScreenshot', handleSaveScreenshot);
+                $domain.on('input', toggleClearButton);
+                $clearInput.on('click', clearInput);
+                $(document).on('keydown', handleGlobalKeydown);
+                $('#languageSelect').on('change', handleLanguageChange);
+                $('#openTldBtn').on('click', openTldModal);
+                $('#closeTldBtn').on('click', closeTldModal);
+                $tldFilter.on('input', renderTldList);
+                $(document).on('click', '.tld-item', handleTldItemClick);
+                $tldModal.on('click', function (e) {
+                    if (e.target === this) closeTldModal();
+                });
+            }
+
+            function handleFormSubmit(e) {
+                e.preventDefault();
+                const domain = $domain.val().trim();
+                if (!domain) return;
+                // 校验域名后缀是否已知（IP 地址跳过）
+                if (!filter_var_is_ip(domain) && !isKnownTld(domain)) {
+                    showToast('unknownTldWarning');
                 }
-            };
-
-            let currentLang = localStorage.getItem(STORAGE_LANG) || detectLang();
-            let currentController = null; // 当前 fetch 的 AbortController，发起新请求前取消旧请求
-            let lastResponse = null;
-
-            // DOM 引用
-            const form = document.getElementById('whoisForm');
-            const input = document.getElementById('domainInput');
-            const submitBtn = document.getElementById('submitBtn');
-            const spinner = document.getElementById('spinner');
-            const clearBtn = document.getElementById('clearBtn');
-            const resultArea = document.getElementById('resultArea');
-            const historyList = document.getElementById('historyList');
-            const historyListMobile = document.getElementById('historyListMobile');
-            const drawer = document.getElementById('historyDrawer');
-            const overlay = document.getElementById('drawerOverlay');
-            const langSelect = document.getElementById('langSelect');
-            const historyToggle = document.getElementById('historyToggle');
-            const clearHistoryBtn = document.getElementById('clearHistory');
-            const clearHistoryMobileBtn = document.getElementById('clearHistoryMobile');
-
-            function detectLang() {
-                const lang = navigator.language || navigator.userLanguage;
-                return i18n[lang] ? lang : (i18n[lang.split('-')[0]] ? lang.split('-')[0] : 'zh-CN');
+                performWhoisLookup(domain);
             }
 
-            function t(key) { return (i18n[currentLang] && i18n[currentLang][key]) || key; }
+            // 模拟 PHP 的 FILTER_VALIDATE_IP
+            function filter_var_is_ip(value) {
+                if (/^\d{1,3}(\.\d{1,3}){3}$/.test(value)) {
+                    return value.split('.').every(n => +n >= 0 && +n <= 255);
+                }
+                // IPv6 简单判断
+                return /^[0-9a-fA-F:]+$/.test(value) && value.includes(':');
+            }
 
-            function applyI18n() {
-                document.querySelectorAll('[data-i18n]').forEach(function (el) {
-                    const key = el.getAttribute('data-i18n');
-                    if (key.indexOf('[placeholder]') === 0) {
-                        el.setAttribute('placeholder', t(key.replace('[placeholder]', '')));
-                    } else {
-                        el.textContent = t(key);
+            // 判断域名后缀是否在 whois.json 中已知
+            function isKnownTld(domain) {
+                if (!tldMap) return true; // 数据未加载完成时不拦截
+                const parts = domain.toLowerCase().split('.');
+                if (parts.length < 2) return false;
+                // 优先匹配多级后缀（如 .co.uk 不在表中，则取最后一段）
+                for (let i = 1; i < parts.length; i++) {
+                    const candidate = parts.slice(i).join('.');
+                    if (Object.prototype.hasOwnProperty.call(tldMap, candidate)) {
+                        return true;
                     }
-                });
-                langSelect.value = currentLang;
+                }
+                return false;
             }
 
-            // HTML 转义，防止 WHOIS 数据注入
-            function esc(str) {
-                if (str === null || str === undefined) return '';
-                return String(str)
-                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-            }
-
-            // 日期格式化为本地时区
-            function formatDate(s) {
-                const d = new Date(s);
-                if (isNaN(d.getTime())) return s;
-                const pad = n => String(n).padStart(2, '0');
-                const off = -d.getTimezoneOffset() / 60;
-                const sign = off >= 0 ? '+' : '-';
-                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} (UTC${sign}${Math.abs(off)})`;
-            }
-
-            // 计算时间跨度
-            function timeSpan(dateStr, type) {
-                if (!dateStr) return '';
-                const d = new Date(dateStr);
-                if (isNaN(d.getTime())) return '';
-                const now = new Date();
-                const diff = type === 'remaining' ? (d - now) : (now - d);
-                const days = Math.max(0, Math.floor(diff / 86400000));
-                let num, unit;
-                if (days >= 365) { num = Math.floor(days / 365); unit = 'years'; }
-                else if (days >= 30) { num = Math.floor(days / 30); unit = 'months'; }
-                else { num = days; unit = 'days'; }
-                const cls = type === 'remaining' ? 'pill green' : 'pill';
-                return `<span class="${cls}">${t(type === 'remaining' ? 'remaining' : 'registered')} ${num} ${t(unit)}</span>`;
-            }
-
-            // 从 WHOIS 原文提取结构化字段
-            // rawDates 保留原始日期字符串，用于时间跨度计算；info 中存格式化后的显示值
-            function parseWhois(raw) {
-                const lines = raw.split('\n');
-                const info = {};
-                const rawDates = {};
-                lines.forEach(line => {
-                    const idx = line.indexOf(':');
-                    if (idx === -1) return;
-                    const key = line.slice(0, idx).trim().toLowerCase();
-                    const val = line.slice(idx + 1).trim();
-                    if (!val) return;
-                    switch (key) {
-                        case 'domain name': case 'domain': case '域名': info.domainName = val; break;
-                        case 'registrar': case 'sponsoring registrar': case '注册商': info.registrar = val; break;
-                        case 'whois server': info.whoisServer = val; break;
-                        case 'updated date': case '更新日': info.updatedDate = formatDate(val); rawDates.updatedDate = val; break;
-                        case 'creation date': case 'registration time': case '注册日': info.creationDate = formatDate(val); rawDates.creationDate = val; break;
-                        case 'registry expiry date': case 'expiration time': info.expiryDate = formatDate(val); rawDates.expiryDate = val; break;
-                        case 'registry domain id': info.registryDomainId = val; break;
-                        case 'domain status': case 'status': case '状态':
-                            info.status = (info.status ? info.status + '\n' : '') + val; break;
-                        case 'name server': case 'nserver':
-                            info.nameServers = (info.nameServers ? info.nameServers + '\n' : '') + val; break;
-                        case 'dnssec': info.dnssec = val; break;
-                        case 'registrant': case '注册人': info.registrant = val; break;
-                        case 'registrant email': case 'registrant contact email': info.registrantEmail = val; break;
-                    }
-                });
-                return { info: info, rawDates: rawDates };
-            }
-
-            function renderResult(response) {
-                lastResponse = response;
-                if (response.error) {
-                    resultArea.innerHTML = `<div class="error-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${esc(t('errorPrefix'))}: ${esc(response.error)}</span></div>`;
+            // 加载 whois.json（带缓存）
+            function loadTldMap(callback) {
+                if (tldMap) {
+                    callback(tldMap);
                     return;
                 }
-                if (!response.whois) {
-                    resultArea.innerHTML = `<div class="error-box"><span>${esc(t('errorPrefix'))}: empty response</span></div>`;
-                    return;
-                }
-                const { info, rawDates } = parseWhois(response.whois);
-                const rows = Object.entries(info).map(([key, val]) => {
-                    let display = esc(val);
-                    if (key === 'domainName') display += timeSpan(rawDates.creationDate, 'registered');
-                    if (key === 'expiryDate') display += timeSpan(rawDates.expiryDate, 'remaining');
-                    return `<div class="info-row"><div class="info-key">${esc(t(key))}</div><div class="info-val">${display}</div></div>`;
-                }).join('');
+                $.ajax({
+                    url: 'whois.json',
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function (data) {
+                        tldMap = data || {};
+                        callback(tldMap);
+                    },
+                    error: function () {
+                        tldMap = {};
+                        callback(tldMap);
+                    }
+                });
+            }
 
-                resultArea.innerHTML = `
-                    <div class="overview-card">
-                        <div class="card-head">
-                            <h3>${esc(t('overview'))}</h3>
-                            ${info.domainName ? `<span class="badge">${esc(info.domainName)}</span>` : ''}
+            function openTldModal() {
+                loadTldMap(function () {
+                    $tldFilter.val('');
+                    renderTldList();
+                    $tldModal.removeClass('hidden');
+                });
+            }
+
+            function closeTldModal() {
+                $tldModal.addClass('hidden');
+            }
+
+            function renderTldList() {
+                const keyword = $tldFilter.val().trim().toLowerCase();
+                const entries = Object.entries(tldMap).filter(function ([tld, server]) {
+                    if (!keyword) return true;
+                    return tld.indexOf(keyword) !== -1 || (server && server.toLowerCase().indexOf(keyword) !== -1);
+                });
+
+                const total = Object.keys(tldMap).length;
+                $tldCount.text(i18next.t('tldCount', { count: entries.length, total: total }));
+
+                const html = entries.map(function ([tld, server]) {
+                    const serverText = server || i18next.t('notAvailable');
+                    const serverClass = server ? 'text-gray-600' : 'text-gray-400 italic';
+                    return `
+                        <div class="tld-item flex justify-between items-center bg-gray-50 hover:bg-indigo-50 rounded-md px-3 py-2 cursor-pointer" data-tld="${tld}">
+                            <span class="text-gray-800 font-medium">.${tld}</span>
+                            <span class="text-xs ${serverClass} break-all ml-2 text-right">${serverText}</span>
                         </div>
-                        <div class="info-grid">${rows || `<div class="info-row"><div class="info-val">${esc(t('noHistory'))}</div></div>`}</div>
-                    </div>
-                    <div class="raw-card">
-                        <div class="card-head">
-                            <h3>${esc(t('rawInfo'))}</h3>
-                            <button class="raw-toggle" id="rawToggle" type="button">
-                                <span id="rawToggleText">${esc(t('expandRaw'))}</span>
-                                <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    `;
+                }).join('');
+                $tldList.html(html || `<p class="text-sm text-gray-500 text-center" data-i18n="noTldMatch">无匹配的后缀</p>`);
+            }
+
+            function handleTldItemClick() {
+                const tld = $(this).data('tld');
+                $domain.val('example.' + tld);
+                toggleClearButton();
+                closeTldModal();
+                $domain.focus();
+            }
+
+            function handleSearchAgain() {
+                const domain = $(this).data('domain');
+                performWhoisLookup(domain);
+            }
+
+            function performWhoisLookup(domain) {
+                updateButtonState(true);
+                updateUrl(domain);
+                $domain.val(domain);
+                toggleClearButton();
+
+                $.ajax({
+                    url: 'whois.php',
+                    method: 'GET',
+                    data: { domain },
+                    dataType: 'json',
+                    success: function (response) {
+                        handleWhoisResponse(response);
+                    },
+                    error: handleWhoisError,
+                    complete: () => {
+                        updateButtonState(false);
+                        updateContent();
+                    }
+                });
+            }
+
+            function handleWhoisResponse(response) {
+                if (response.rdap) {
+                    const { importantInfoHtml, originalInfoHtml } = formatRdapInfo(response.rdap);
+                    $importantInfo.html(importantInfoHtml);
+                    $originalInfo.html(originalInfoHtml);
+                    $resultDiv.removeClass('hidden');
+                    updateSearchHistory($domain.val().trim());
+                } else if (response.fallback) {
+                    // 该后缀无 RDAP 服务，显示 ICANN 查询链接
+                    const fallbackUrl = escapeHtml(response.fallback);
+                    const errorMsg = response.error ? escapeHtml(response.error) : '';
+                    $importantInfo.html(`
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 mb-4 text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-yellow-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <p class="text-yellow-800 font-medium mb-1" data-i18n="noRdapService">该后缀暂无 RDAP 查询服务</p>
+                            ${errorMsg ? `<p class="text-sm text-yellow-600 mb-3">${errorMsg}</p>` : '<div class="mb-3"></div>'}
+                            <a href="${fallbackUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm transition-colors duration-200">
+                                <span data-i18n="icannLookup">前往 ICANN 查询</span>
+                                <svg class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </a>
+                        </div>
+                    `);
+                    $originalInfo.html('');
+                    $resultDiv.removeClass('hidden');
+                    updateSearchHistory($domain.val().trim());
+                    updateContent();
+                } else if (response.error) {
+                    showError(i18next.t('error', { message: escapeHtml(response.error) }));
+                }
+            }
+
+            function getLabel(key) {
+                return i18next.t(key, { defaultValue: key });
+            }
+
+            function handleWhoisError(jqXHR, textStatus) {
+                showError(i18next.t('requestFailed', { status: escapeHtml(textStatus) }));
+            }
+
+            // HTML 转义，防止 XSS
+            function escapeHtml(text) {
+                if (text == null) return '';
+                return String(text).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+
+            // 从 vcardArray 提取联系人信息（RFC 7483 jCard 格式）
+            function extractVcard(vcardArray) {
+                const result = {};
+                if (!Array.isArray(vcardArray) || vcardArray.length < 2) return result;
+                const entries = vcardArray[1];
+                if (!Array.isArray(entries)) return result;
+                entries.forEach(function (entry) {
+                    if (!Array.isArray(entry) || entry.length < 4) return;
+                    const key = entry[0];
+                    const value = entry[3];
+                    if (key === 'fn') result.fn = value;
+                    else if (key === 'email') result.email = value;
+                    else if (key === 'org') result.org = value;
+                });
+                return result;
+            }
+
+            // 格式化 RDAP 日期为本地时区显示
+            function formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return escapeHtml(dateString);
+                return escapeHtml(date.toLocaleString());
+            }
+
+            // 解析 RDAP JSON 响应，生成概览和原始信息 HTML
+            function formatRdapInfo(rdap) {
+                const temp = {};
+                const rawDates = {}; // 保存原始日期用于时间跨度计算
+
+                // 域名（优先显示 Unicode 形式）
+                temp.domainName = escapeHtml(rdap.unicodeName || rdap.ldhName || '');
+
+                // 注册局域名 ID
+                if (rdap.handle) temp.registryDomainId = escapeHtml(rdap.handle);
+
+                // 事件：注册、过期、更新
+                if (Array.isArray(rdap.events)) {
+                    rdap.events.forEach(function (ev) {
+                        if (!ev.eventDate) return;
+                        if (ev.eventAction === 'registration') {
+                            rawDates.creationDate = ev.eventDate;
+                            temp.creationDate = formatDate(ev.eventDate);
+                        } else if (ev.eventAction === 'expiration') {
+                            rawDates.expiryDate = ev.eventDate;
+                            temp.expiryDate = formatDate(ev.eventDate);
+                        } else if (ev.eventAction === 'last changed') {
+                            temp.updatedDate = formatDate(ev.eventDate);
+                        }
+                    });
+                }
+
+                // 状态
+                if (Array.isArray(rdap.status) && rdap.status.length) {
+                    temp.status = rdap.status.map(escapeHtml).join('<br>');
+                }
+
+                // 域名服务器
+                if (Array.isArray(rdap.nameservers) && rdap.nameservers.length) {
+                    const ns = rdap.nameservers.map(function (n) {
+                        return n.unicodeName || n.ldhName || '';
+                    }).filter(Boolean);
+                    if (ns.length) temp.nameServers = ns.map(escapeHtml).join('<br>');
+                }
+
+                // DNSSEC
+                if (rdap.secureDNS && typeof rdap.secureDNS.delegationSigned !== 'undefined') {
+                    const signed = rdap.secureDNS.delegationSigned;
+                    const key = signed ? 'dnssecSigned' : 'dnssecUnsigned';
+                    temp.dnssec = `<span data-i18n="${key}">${i18next.t(key, { defaultValue: signed ? '已签名' : '未签名' })}</span>`;
+                }
+
+                // 实体：注册商、注册人（含嵌套实体）
+                if (Array.isArray(rdap.entities)) {
+                    rdap.entities.forEach(function (entity) {
+                        const roles = entity.roles || [];
+                        const vcard = extractVcard(entity.vcardArray);
+                        if (roles.includes('registrar')) {
+                            if (vcard.fn) temp.registrar = escapeHtml(vcard.fn);
+                            if (entity.handle) temp.ianaId = escapeHtml(entity.handle);
+                        }
+                        if (roles.includes('registrant')) {
+                            if (vcard.fn) temp.registrant = escapeHtml(vcard.fn);
+                            if (vcard.email) temp.registrantEmail = escapeHtml(vcard.email);
+                        }
+                        // 嵌套实体（注册人可能在注册商的子实体中）
+                        if (Array.isArray(entity.entities)) {
+                            entity.entities.forEach(function (sub) {
+                                const subRoles = sub.roles || [];
+                                const subVcard = extractVcard(sub.vcardArray);
+                                if (subRoles.includes('registrant')) {
+                                    if (subVcard.fn) temp.registrant = escapeHtml(subVcard.fn);
+                                    if (subVcard.email) temp.registrantEmail = escapeHtml(subVcard.email);
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // 按固定顺序构建显示字段
+                const fieldOrder = ['domainName', 'registrar', 'ianaId', 'registryDomainId',
+                    'creationDate', 'expiryDate', 'updatedDate', 'status',
+                    'nameServers', 'dnssec', 'registrant', 'registrantEmail'];
+                const info = {};
+                fieldOrder.forEach(function (key) {
+                    if (temp[key]) info[key] = temp[key];
+                });
+
+                const registrationPeriod = calculatePeriod(rawDates.creationDate, 'registrationPeriod');
+                const remainingTime = calculatePeriod(rawDates.expiryDate, 'remainingTime');
+
+                // 生成重要信息 HTML
+                let importantInfoHtml = `
+                    <div id="importantInfoCard" class="bg-blue-50 rounded-lg p-2 sm:p-4 mb-4 sm:mb-6 relative">
+                        <div class="flex justify-between items-center mb-2 sm:mb-3">
+                            <h3 class="text-lg font-bold text-blue-700" data-i18n="whoisOverview">WHOIS 信息概览</h3>
+                            <button id="saveScreenshot" class="text-blue-600 hover:text-blue-800 focus:outline-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
                             </button>
                         </div>
-                        <div class="raw-body" id="rawBody"><pre class="raw-content">${esc(response.whois)}</pre></div>
+                        <div class="space-y-2">
+                            ${Object.entries(info).map(([key, value]) => `
+                                <div class="flex flex-col sm:flex-row">
+                                    <span class="text-gray-600 font-semibold sm:w-32 sm:flex-shrink-0 sm:text-right sm:pr-2" data-i18n="${key}">${getLabel(key)}：</span>
+                                    <span class="text-gray-800 break-words sm:flex-grow flex items-center">
+                                        ${value}
+                                        ${key === 'domainName' ? registrationPeriod : ''}
+                                        ${key === 'expiryDate' ? remainingTime : ''}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
                 `;
 
-                document.getElementById('rawToggle').addEventListener('click', function () {
-                    const body = document.getElementById('rawBody');
-                    const open = body.classList.contains('open');
-                    body.classList.toggle('open', !open);
-                    this.classList.toggle('expanded', !open);
-                    document.getElementById('rawToggleText').textContent = open ? t('expandRaw') : t('collapseRaw');
+                // 生成原始 RDAP JSON 信息 HTML
+                const rawJson = escapeHtml(JSON.stringify(rdap, null, 2));
+                let originalInfoHtml = `
+                    <div class="bg-gray-50 rounded-lg p-2 sm:p-4">
+                        <div class="flex justify-between items-center mb-2 sm:mb-3">
+                            <h3 class="text-lg font-bold text-gray-700" data-i18n="originalRdap">RDAP 原始信息</h3>
+                            <button id="copyOriginalInfo" class="text-blue-600 hover:text-blue-800 focus:outline-none" data-clipboard-target="#originalInfoContent">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <pre id="originalInfoContent" class="whitespace-pre-wrap text-sm break-words">${rawJson}</pre>
+                    </div>
+                `;
+
+                return { importantInfoHtml, originalInfoHtml };
+            }
+
+            // 计算时间跨度（注册至今 / 距过期剩余）
+            function calculatePeriod(dateString, type) {
+                if (!dateString) return '';
+
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '';
+                const currentDate = new Date();
+                const diffTime = Math.abs(type === 'remainingTime' ? date - currentDate : currentDate - date);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let time, unit;
+                if (diffDays >= 365) {
+                    time = Math.floor(diffDays / 365);
+                    unit = 'years';
+                } else if (diffDays >= 30) {
+                    time = Math.floor(diffDays / 30);
+                    unit = 'months';
+                } else {
+                    time = diffDays;
+                    unit = 'days';
+                }
+
+                return `<span class="inline-flex items-center justify-center text-xs text-white bg-${type === 'remainingTime' ? 'green' : 'blue'}-600 rounded px-1 ml-1 align-middle" style="height: 1.5em; line-height: 1;" data-i18n="${type}" data-time="${time}" data-unit="${unit}"></span>`;
+            }
+
+            function updateSearchHistory(domain) {
+                let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+                if (domain?.trim()) {
+                    history = [domain, ...history.filter(item => item !== domain)].slice(0, MAX_HISTORY);
+                    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+                }
+                renderHistory(history);
+            }
+
+            function renderHistory(history) {
+                const historyHtml = history.length
+                    ? history.map(item => `
+                        <li class="bg-gray-50 p-2 rounded-md">
+                            <span class="text-xs sm:text-sm text-gray-600 block mb-1">${item}</span>
+                            <button class="search-again text-xs text-indigo-600 hover:text-indigo-800" data-domain="${item}" data-i18n="searchAgain">再次查询</button>
+                        </li>
+                    `).join('')
+                    : `<li class="text-xs sm:text-sm text-gray-500 text-center" data-i18n="noHistory">暂无历史查询记录</li>`;
+                $historyList.html(historyHtml);
+            }
+
+            function updateButtonState(isLoading) {
+                const $submitText = $submitBtn.find('span');
+                const $spinner = $submitBtn.find('svg');
+                $submitBtn.prop('disabled', isLoading)
+                    .toggleClass('bg-indigo-600 hover:bg-indigo-700 text-white', !isLoading)
+                    .toggleClass('bg-gray-300 text-gray-800', isLoading);
+                $submitText.data('data-i18n', isLoading ? 'searching' : 'search');
+                $spinner.toggleClass('hidden', !isLoading);
+            }
+
+            function updateUrl(domain) {
+                if (domain) {
+                    history.pushState(null, '', '/' + encodeURIComponent(domain));
+                }
+            }
+
+            function showError(message) {
+                $importantInfo.html('');
+                $originalInfo.html(`<p class="text-red-500">${message}</p>`);
+                $resultDiv.removeClass('hidden');
+            }
+
+            function showToast(message, duration = 3000) {
+                const toast = $('#toast');
+                toast.text(i18next.t(message)).css('opacity', 1);
+                setTimeout(() => {
+                    toast.css('opacity', 0);
+                }, duration);
+            }
+
+            function initClipboard() {
+                new ClipboardJS('#copyOriginalInfo', {
+                    text: function () {
+                        return $('#originalInfoContent').text();
+                    }
+                }).on('success', function () {
+                    showToast('copiedToClipboard');
+                }).on('error', function () {
+                    showToast('copyFailed');
                 });
             }
 
-            function setLoading(loading) {
-                submitBtn.disabled = loading;
-                spinner.style.display = loading ? 'inline-block' : 'none';
-                submitBtn.querySelector('.label').textContent = loading ? t('searching') : t('search');
-            }
+            function handleSaveScreenshot() {
+                const element = document.getElementById('importantInfoCard');
+                const currentDomain = window.location.hostname;
+                const currentQueryDomain = $('#domain').val().trim();
+                const $saveScreenshotBtn = $('#saveScreenshot');
 
-            // 调用后台 whois.php 查询
-            function lookup(domain) {
-                // 取消上一个未完成的请求，避免旧响应覆盖新结果
-                if (currentController) currentController.abort();
-                setLoading(true);
-                currentController = new AbortController();
-                const url = 'whois.php?domain=' + encodeURIComponent(domain);
-                fetch(url, { signal: currentController.signal })
-                    .then(function (resp) {
-                        // 即使非 200 也尝试解析 JSON（后台错误也返回 JSON）
-                        return resp.json().then(function (data) {
-                            return data;
-                        }).catch(function () {
-                            return { error: 'HTTP ' + resp.status };
-                        });
+                // 临时隐藏截图按钮
+                $saveScreenshotBtn.hide();
+
+                // 使用 dom-to-image 进行截图
+                domtoimage.toPng(element, {
+                    quality: 1,
+                    bgcolor: '#ffffff'
+                })
+                    .then(function (dataUrl) {
+                        // 创建一个临时的 canvas 元素来添加水印
+                        const img = new Image();
+                        img.onload = function () {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+
+                            // 绘制原始图像
+                            ctx.drawImage(img, 0, 0);
+
+                            // 添加水印
+                            ctx.font = '12px Arial';
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                            const watermarkText = '© ' + new Date().getFullYear() + ' ' + currentDomain;
+                            const textWidth = ctx.measureText(watermarkText).width;
+                            ctx.fillText(watermarkText, canvas.width - textWidth - 10, canvas.height - 10);
+
+                            // 创建下载链接
+                            const link = document.createElement('a');
+                            link.download = `whois_${currentQueryDomain}.png`;
+                            link.href = canvas.toDataURL('image/png');
+                            link.click();
+
+                            // 截图完成后显示截图按钮
+                            $saveScreenshotBtn.show();
+                        };
+                        img.src = dataUrl;
                     })
-                    .then(function (resp) {
-                        renderResult(resp);
-                        addHistory(domain);
-                    })
-                    .catch(function (err) {
-                        if (err.name === 'AbortError') return; // 主动取消，不提示
-                        renderResult({ error: t('requestFailed') + ' (' + (err.message || err) + ')' });
-                    })
-                    .finally(function () {
-                        currentController = null;
-                        setLoading(false);
+                    .catch(function (error) {
+                        console.error('截图失败:', error);
+                        showToast('screenshotFailed');
+                        // 发生错误时也要显示截图按钮
+                        $saveScreenshotBtn.show();
                     });
             }
 
-            form.addEventListener('submit', function (e) {
-                e.preventDefault();
-                const domain = input.value.trim();
-                if (!domain) return;
-                lookup(domain);
-            });
-
-            input.addEventListener('input', function () {
-                clearBtn.classList.toggle('visible', !!this.value);
-            });
-
-            clearBtn.addEventListener('click', function () {
-                input.value = '';
-                input.focus();
-                clearBtn.classList.remove('visible');
-            });
-
-            // 历史
-            function getHistory() {
-                try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
-                catch (e) { return []; }
+            function checkUrlForDomain() {
+                const path = window.location.pathname;
+                const domain = decodeURIComponent(path.substring(1)); // 移除开头的斜杠
+                if (domain) {
+                    $domain.val(domain);
+                    performWhoisLookup(domain);
+                }
             }
 
-            function addHistory(domain) {
-                let history = getHistory().filter(item => item.domain !== domain);
-                history.unshift({ domain: domain, time: Date.now() });
-                history = history.slice(0, MAX_HISTORY);
-                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-                renderHistory();
+            function toggleClearButton() {
+                $clearInput.toggle(!!$domain.val());
             }
 
-            function renderHistory() {
-                const history = getHistory();
-                const html = history.length
-                    ? history.map(item => `
-                        <li class="history-item" data-domain="${esc(item.domain)}">
-                            <span class="history-domain">${esc(item.domain)}</span>
-                            <span class="history-time">${formatRelative(item.time)}</span>
-                        </li>
-                    `).join('')
-                    : `<li class="history-empty">${esc(t('noHistory'))}</li>`;
-                historyList.innerHTML = html;
-                historyListMobile.innerHTML = html;
+            function clearInput() {
+                $domain.val('').focus();
+                toggleClearButton();
             }
 
-            function formatRelative(ts) {
-                const diff = Date.now() - ts;
-                const min = Math.floor(diff / 60000);
-                if (min < 1) return 'now';
-                if (min < 60) return min + 'm';
-                const hr = Math.floor(min / 60);
-                if (hr < 24) return hr + 'h';
-                const d = Math.floor(hr / 24);
-                return d + 'd';
+            function handleGlobalKeydown(e) {
+                if (e.key === 'Delete') {
+                    e.preventDefault();
+                    clearInput();
+                }
             }
 
-            // 历史项点击：事件委托（两个列表共用）
-            function handleHistoryClick(e) {
-                const item = e.target.closest('.history-item');
-                if (!item) return;
-                const domain = item.getAttribute('data-domain');
-                input.value = domain;
-                clearBtn.classList.add('visible');
-                closeDrawer();
-                lookup(domain);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-            historyList.addEventListener('click', handleHistoryClick);
-            historyListMobile.addEventListener('click', handleHistoryClick);
+            function initI18n() {
+                const userLang = navigator.language || navigator.userLanguage; // 获取浏览器语言
+                const defaultLang = ['zh-CN', 'zh-TW', 'en', 'ru', 'es'].includes(userLang) ? userLang : 'zh-CN'; // 检查是否支持该语言，不支持则默认 'zh-CN'
 
-            function clearAllHistory() {
-                if (!confirm(t('clearConfirm'))) return;
-                localStorage.removeItem(HISTORY_KEY);
-                renderHistory();
+                i18next.init({
+                    lng: defaultLang, // 根据浏览器语言设置默认语言
+                    resources: {
+                        'zh-CN': {
+                            translation: {
+                                'title': 'WHOIS 查询',
+                                'inputPlaceholder': '请输入IP或者域名',
+                                'search': '查询',
+                                'searching': '查询中',
+                                'recentSearches': '最近查询',
+                                'noHistory': '暂无历史查询记录',
+                                'searchAgain': '再次查询',
+                                'whoisOverview': 'WHOIS 信息概览',
+                                'originalWhois': 'WHOIS 原始信息',
+                                'copyButton': '复制',
+                                'screenshotButton': '截图',
+                                'copiedToClipboard': '原始信息已复制到剪贴板',
+                                'copyFailed': '复制失败，请手动复制',
+                                'screenshotFailed': '截图失败，请稍后重试',
+                                'domainName': '域名',
+                                'registrar': '注册商',
+                                'whoisServer': 'WHOIS 服务器',
+                                'updatedDate': '更新日',
+                                'creationDate': '注册日',
+                                'expiryDate': '过期日',
+                                'remainingTime': '剩余 {{time}} {{unit}}',
+                                'registrationPeriod': '{{time}} {{unit}}',
+                                'years': '年',
+                                'months': '个月',
+                                'days': '天',
+                                'status': '状态',
+                                'nameServers': '域名服务器',
+                                'dnssec': 'DNSSEC',
+                                'registrant': '注册人',
+                                'registrantEmail': '注册人邮箱',
+                                'error': '错误: {{message}}',
+                                'requestFailed': '请求失败: {{status}}',
+                                'knownTlds': '已知域名后缀',
+                                'tldFilterPlaceholder': '搜索域名后缀或 WHOIS 服务器',
+                                'tldCount': '显示 {{count}} / 共 {{total}} 个',
+                                'notAvailable': '暂无',
+                                'noTldMatch': '无匹配的后缀',
+                                'unknownTldWarning': '未知域名后缀，将尝试通过默认服务器查询',
+                                'originalRdap': 'RDAP 原始信息',
+                                'noRdapService': '该后缀暂无 RDAP 查询服务，请通过 ICANN 官方查询',
+                                'icannLookup': '前往 ICANN 查询',
+                                'registryDomainId': '注册局域名 ID',
+                                'ianaId': 'IANA ID',
+                                'dnssecSigned': '已签名',
+                                'dnssecUnsigned': '未签名'
+                            }
+                        },
+                        'zh-TW': {
+                            translation: {
+                                'title': 'WHOIS 查詢',
+                                'inputPlaceholder': '請輸入IP或者域名',
+                                'search': '查詢',
+                                'searching': '查詢中',
+                                'recentSearches': '最近查詢',
+                                'noHistory': '暫無歷史查詢記錄',
+                                'searchAgain': '再次查詢',
+                                'whoisOverview': 'WHOIS 信息概覽',
+                                'originalWhois': 'WHOIS 原始信息',
+                                'copyButton': '複製',
+                                'screenshotButton': '截圖',
+                                'copiedToClipboard': '原始信息已複製到剪貼板',
+                                'copyFailed': '複製失敗，請手動複製',
+                                'screenshotFailed': '截圖失敗，請稍後重試',
+                                'domainName': '域名',
+                                'registrar': '註冊商',
+                                'whoisServer': 'WHOIS 伺服器',
+                                'updatedDate': '更新日',
+                                'creationDate': '註冊日',
+                                'expiryDate': '過期日',
+                                'remainingTime': '剩餘 {{time}} {{unit}}',
+                                'registrationPeriod': '{{time}} {{unit}}',
+                                'years': '年',
+                                'months': '個月',
+                                'days': '天',
+                                'status': '狀態',
+                                'nameServers': '域名伺服器',
+                                'dnssec': 'DNSSEC',
+                                'registrant': '註冊人',
+                                'registrantEmail': '註冊人郵箱',
+                                'error': '錯誤: {{message}}',
+                                'requestFailed': '請求失敗: {{status}}',
+                                'knownTlds': '已知域名後綴',
+                                'tldFilterPlaceholder': '搜尋域名後綴或 WHOIS 伺服器',
+                                'tldCount': '顯示 {{count}} / 共 {{total}} 個',
+                                'notAvailable': '暫無',
+                                'noTldMatch': '無匹配的後綴',
+                                'unknownTldWarning': '未知域名後綴，將嘗試通過預設伺服器查詢',
+                                'originalRdap': 'RDAP 原始資訊',
+                                'noRdapService': '該後綴暫無 RDAP 查詢服務，請通過 ICANN 官方查詢',
+                                'icannLookup': '前往 ICANN 查詢',
+                                'registryDomainId': '註冊局域名 ID',
+                                'ianaId': 'IANA ID',
+                                'dnssecSigned': '已簽署',
+                                'dnssecUnsigned': '未簽署'
+                            }
+                        },
+                        'en': {
+                            translation: {
+                                'title': 'WHOIS Lookup',
+                                'inputPlaceholder': 'Enter IP or domain name',
+                                'search': 'Search',
+                                'searching': 'Searching',
+                                'recentSearches': 'Recent Searches',
+                                'noHistory': 'No search history',
+                                'searchAgain': 'Search Again',
+                                'whoisOverview': 'WHOIS Information Overview',
+                                'originalWhois': 'Original WHOIS Information',
+                                'copyButton': 'Copy',
+                                'screenshotButton': 'Screenshot',
+                                'copiedToClipboard': 'Original information copied to clipboard',
+                                'copyFailed': 'Copy failed, please copy manually',
+                                'screenshotFailed': 'Screenshot failed, please try again later',
+                                'domainName': 'Domain Name',
+                                'registrar': 'Registrar',
+                                'whoisServer': 'WHOIS Server',
+                                'updatedDate': 'Updated Date',
+                                'creationDate': 'Creation Date',
+                                'expiryDate': 'Expiry Date',
+                                'remainingTime': '{{time}} {{unit}} remaining',
+                                'registrationPeriod': '{{time}} {{unit}}',
+                                'years': 'years',
+                                'months': 'months',
+                                'days': 'days',
+                                'status': 'Status',
+                                'nameServers': 'Name Servers',
+                                'dnssec': 'DNSSEC',
+                                'registrant': 'Registrant',
+                                'registrantEmail': 'Registrant Email',
+                                'error': 'Error: {{message}}',
+                                'requestFailed': 'Request failed: {{status}}',
+                                'knownTlds': 'Known TLDs',
+                                'tldFilterPlaceholder': 'Search TLD or WHOIS server',
+                                'tldCount': 'Showing {{count}} of {{total}}',
+                                'notAvailable': 'N/A',
+                                'noTldMatch': 'No matching TLD',
+                                'unknownTldWarning': 'Unknown TLD, will try querying via the default server',
+                                'originalRdap': 'Original RDAP Information',
+                                'noRdapService': 'No RDAP service for this TLD, please use ICANN official lookup',
+                                'icannLookup': 'Go to ICANN Lookup',
+                                'registryDomainId': 'Registry Domain ID',
+                                'ianaId': 'IANA ID',
+                                'dnssecSigned': 'Signed',
+                                'dnssecUnsigned': 'Unsigned'
+                            }
+                        },
+                        'ru': {
+                            translation: {
+                                'title': 'WHOIS Поиск',
+                                'inputPlaceholder': 'Введите IP или доменное имя',
+                                'search': 'Поиск',
+                                'searching': 'Поиск...',
+                                'recentSearches': 'Недавние запросы',
+                                'noHistory': 'Нет истории поиска',
+                                'searchAgain': 'Искать снова',
+                                'whoisOverview': 'Обзор информации WHOIS',
+                                'originalWhois': 'Оригинальная информация WHOIS',
+                                'copyButton': 'Копировать',
+                                'screenshotButton': 'Скриншот',
+                                'copiedToClipboard': 'Оригинальная информация скопирована в буфер обмена',
+                                'copyFailed': 'Не удалось скопировать, пожалуйста, скопируйте вручную',
+                                'screenshotFailed': 'Не удалось сделать скриншот, попробуйте позже',
+                                'domainName': 'Доменное имя',
+                                'registrar': 'Регистратор',
+                                'whoisServer': 'WHOIS сервер',
+                                'updatedDate': 'Дата обновления',
+                                'creationDate': 'Дата создания',
+                                'expiryDate': 'Дата истечения',
+                                'remainingTime': 'Осталось {{time}} {{unit}}',
+                                'registrationPeriod': '{{time}} {{unit}}',
+                                'years': 'лет',
+                                'months': 'месяцев',
+                                'days': 'дней',
+                                'status': 'Статус',
+                                'nameServers': 'Имена серверов',
+                                'dnssec': 'DNSSEC',
+                                'registrant': 'Регистрант',
+                                'registrantEmail': 'Email регистранта',
+                                'error': 'Ошибка: {{message}}',
+                                'requestFailed': 'Запрос не выполнен: {{status}}',
+                                'knownTlds': 'Известные TLD',
+                                'tldFilterPlaceholder': 'Поиск TLD или WHOIS сервера',
+                                'tldCount': 'Показано {{count}} из {{total}}',
+                                'notAvailable': 'Н/Д',
+                                'noTldMatch': 'Совпадений не найдено',
+                                'unknownTldWarning': 'Неизвестный TLD, запрос будет выполнен через сервер по умолчанию',
+                                'originalRdap': 'Оригинальная информация RDAP',
+                                'noRdapService': 'Для этого TLD нет службы RDAP, используйте официальный поиск ICANN',
+                                'icannLookup': 'Перейти к поиску ICANN',
+                                'registryDomainId': 'ID домена в реестре',
+                                'ianaId': 'IANA ID',
+                                'dnssecSigned': 'Подписан',
+                                'dnssecUnsigned': 'Не подписан'
+                            }
+                        },
+                        'es': {
+                            translation: {
+                                'title': 'Consulta WHOIS',
+                                'inputPlaceholder': 'Ingrese IP o nombre de dominio',
+                                'search': 'Buscar',
+                                'searching': 'Buscando...',
+                                'recentSearches': 'Búsquedas recientes',
+                                'noHistory': 'No hay historial de búsqueda',
+                                'searchAgain': 'Buscar de nuevo',
+                                'whoisOverview': 'Resumen de información WHOIS',
+                                'originalWhois': 'Información original de WHOIS',
+                                'copyButton': 'Copiar',
+                                'screenshotButton': 'Captura de pantalla',
+                                'copiedToClipboard': 'Información original copiada al portapapeles',
+                                'copyFailed': 'Error al copiar, por favor copie manualmente',
+                                'screenshotFailed': 'Error al tomar captura de pantalla, intente nuevamente más tarde',
+                                'domainName': 'Nombre de dominio',
+                                'registrar': 'Registrador',
+                                'whoisServer': 'Servidor WHOIS',
+                                'updatedDate': 'Fecha de actualización',
+                                'creationDate': 'Fecha de creación',
+                                'expiryDate': 'Fecha de expiración',
+                                'remainingTime': '{{time}} {{unit}} restantes',
+                                'registrationPeriod': '{{time}} {{unit}}',
+                                'years': 'años',
+                                'months': 'meses',
+                                'days': 'días',
+                                'status': 'Estado',
+                                'nameServers': 'Servidores de nombres',
+                                'dnssec': 'DNSSEC',
+                                'registrant': 'Registrante',
+                                'registrantEmail': 'Email del registrante',
+                                'error': 'Error: {{message}}',
+                                'requestFailed': 'Solicitud fallida: {{status}}',
+                                'knownTlds': 'TLD conocidos',
+                                'tldFilterPlaceholder': 'Buscar TLD o servidor WHOIS',
+                                'tldCount': 'Mostrando {{count}} de {{total}}',
+                                'notAvailable': 'N/D',
+                                'noTldMatch': 'Sin coincidencias',
+                                'unknownTldWarning': 'TLD desconocido, se intentará consultar mediante el servidor predeterminado',
+                                'originalRdap': 'Información original de RDAP',
+                                'noRdapService': 'No hay servicio RDAP para este TLD, use la búsqueda oficial de ICANN',
+                                'icannLookup': 'Ir a búsqueda ICANN',
+                                'registryDomainId': 'ID de dominio del registro',
+                                'ianaId': 'IANA ID',
+                                'dnssecSigned': 'Firmado',
+                                'dnssecUnsigned': 'No firmado'
+                            }
+                        }
+                    }
+                }, function (err, t) {
+                    updateContent();
+                });
             }
-            clearHistoryBtn.addEventListener('click', clearAllHistory);
-            clearHistoryMobileBtn.addEventListener('click', clearAllHistory);
 
-            // 移动端抽屉
-            function openDrawer() {
-                drawer.classList.add('open');
-                overlay.classList.add('open');
+            function updateContent() {
+                // 更新其他内容的翻译
+                $('[data-i18n]').each(function () {
+                    const $this = $(this);
+                    const key = $this.data('i18n');
+                    if (key === 'remainingTime' || key === 'registrationPeriod') {
+                        const time = $this.data('time');
+                        const unit = $this.data('unit');
+                        $this.html(i18next.t(key, { time: time, unit: i18next.t(unit) }));
+                    } else if (key.includes('[placeholder]')) {
+                        // 特殊处理 placeholder 属性
+                        const placeholderKey = key.replace('[placeholder]', '');
+                        $this.attr('placeholder', i18next.t(placeholderKey));
+                    } else {
+                        $this.text(i18next.t(key));
+                    }
+                });
             }
-            function closeDrawer() {
-                drawer.classList.remove('open');
-                overlay.classList.remove('open');
+
+            function handleLanguageChange() {
+                i18next.changeLanguage(this.value, function () {
+                    updateContent();
+                });
             }
-            historyToggle.addEventListener('click', openDrawer);
-            overlay.addEventListener('click', closeDrawer);
 
-            // 语言切换
-            langSelect.addEventListener('change', function () {
-                currentLang = this.value;
-                localStorage.setItem(STORAGE_LANG, currentLang);
-                applyI18n();
-                // 若已有结果，重新渲染以更新字段标签与时间跨度文案
-                if (lastResponse) renderResult(lastResponse);
-            });
-
-            // 初始化
-            applyI18n();
-            renderHistory();
+            init();
         });
     </script>
 </body>
