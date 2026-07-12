@@ -32,7 +32,11 @@ define('API_RATE_LIMIT_MAX', 30);
 $EXTRA_RDAP_SERVERS = [];
 
 // 请求处理：被 index.php 统一入口或 whois.php 直接访问时调用
-// 入口逻辑：?api=<domain> → 纯原始数据（限流）；?domain=<domain> → Web 查询 JSON；两者皆无 → 400
+// 入口逻辑：
+//   ?api=<domain>   → 纯原始数据（限流），任何人可访问
+//   ?domain=<domain> → 仅响应前端 AJAX 请求（X-Requested-With 头），直接浏览器访问返回 HTML 页面
+//   两者皆无         → 由调用方输出 HTML 页面
+// 返回 true 表示已处理并 exit；返回 false 表示未处理，调用方应输出 HTML
 function handleWhoisRequest() {
     // API 模式：?api=<domain> —— 纯原始数据，零包装
     //   RDAP 命中 → 直接输出原始 RDAP JSON（application/rdap+json）
@@ -52,16 +56,21 @@ function handleWhoisRequest() {
         exit;
     }
 
-    // Web 模式：?domain=<domain> —— 返回结构化 JSON 供前端使用
-    if (!isset($_GET['domain']) || $_GET['domain'] === '') {
+    // Web 模式：?domain=<domain> —— 仅响应前端 AJAX（带 X-Requested-With 头）
+    // 直接浏览器访问（地址栏输入）无此头 → 返回 false，由 index.php 输出 HTML 页面
+    if (isset($_GET['domain']) && $_GET['domain'] !== '') {
+        $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
+            && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+        if (!$isAjax) {
+            return false;
+        }
         header('Content-Type: application/json; charset=utf-8');
-        http_response_code(400);
-        echo json_encode(['error' => 'Missing domain parameter']);
+        echo json_encode(getRdapRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(getRdapRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
+    // 无参数 → 输出 HTML 页面
+    return false;
 }
 
 // API 输出：纯原始数据，零包装
@@ -97,8 +106,13 @@ function outputRawApiRecord($input) {
 }
 
 // 直接访问 whois.php 时自动处理请求；被 index.php include 时不自动执行（由 index.php 调用）
+// 直接访问且无有效请求时返回 404（whois.php 是后端库，不输出 HTML 页面）
 if (!defined('INDEX_PHP')) {
-    handleWhoisRequest();
+    if (handleWhoisRequest() === false) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Not Found';
+    }
 }
 
 // 主查询函数：RDAP 优先 → WHOIS 回退 → ICANN 降级

@@ -1,10 +1,11 @@
 <?php
-// 统一入口：?api=<domain> → 原始数据 API；?domain=<domain> → Web JSON；否则输出 HTML 页面
+// 统一入口：?api=<domain> → 原始数据 API；?domain=<domain> → 仅前端 AJAX 可获取 JSON，否则输出 HTML 页面
 define('INDEX_PHP', true);
 require __DIR__ . '/whois.php';
 if ((isset($_GET['api']) && $_GET['api'] !== '') || (isset($_GET['domain']) && $_GET['domain'] !== '')) {
-    handleWhoisRequest();
-    exit;
+    if (handleWhoisRequest() !== false) {
+        exit;
+    }
 }
 header('Content-Type: text/html; charset=utf-8');
 ?>
@@ -1131,7 +1132,7 @@ header('Content-Type: text/html; charset=utf-8');
 
                 fetch('?domain=' + encodeURIComponent(domain), {
                     signal: controller.signal,
-                    headers: { 'Accept': 'application/json' }
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
                 })
                     .then(res => res.json())
                     .then(response => handleWhoisResponse(response))
