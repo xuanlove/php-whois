@@ -1,4 +1,5 @@
 rdap-cache.json
 whois-cache.json
 servers-cache.json
+api-rate-limit.json
 node_modules/

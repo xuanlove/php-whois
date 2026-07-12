@@ -22,6 +22,11 @@ define('SERVERS_CACHE_TTL', 604800); // 7 天（服务器变更极少）
 define('WHOIS_PORT', 43);
 define('WHOIS_TIMEOUT', 12);
 
+// API 限流：60 秒内同 IP 最多 30 次查询
+define('API_RATE_LIMIT_FILE', __DIR__ . '/api-rate-limit.json');
+define('API_RATE_LIMIT_WINDOW', 60);
+define('API_RATE_LIMIT_MAX', 30);
+
 // RDAP 服务器补充列表（IANA 根数据库未列出 RDAP Server，但实际提供 RDAP 服务的 ccTLD）
 // 注意：cn/jp/kr/ru 的 RDAP 服务器经实测均不可用（连接失败），这些 ccTLD 实际未部署 RDAP，
 // 已全部移除，改为直接走 WHOIS 查询。若将来某 ccTLD 部署了 RDAP，可在此补充。
@@ -31,6 +36,20 @@ $EXTRA_RDAP_SERVERS = [];
 if (!isset($_GET['domain']) || $_GET['domain'] === '') {
     http_response_code(400);
     echo json_encode(['error' => 'Missing domain parameter']);
+    exit;
+}
+
+// API 模式：?api=domain —— 仅返回原始数据（RDAP JSON 或 WHOIS 文本），未注册直接返回错误
+// 查询逻辑与 Web 模式一致，区别仅在于响应精简（剥离 fallback/query_url 等内部字段）
+if (isset($_GET['api']) && $_GET['api'] !== '') {
+    // 限流检查
+    if (!checkApiRateLimit(getClientIp())) {
+        http_response_code(429);
+        header('Retry-After: ' . API_RATE_LIMIT_WINDOW);
+        echo json_encode(['error' => 'Rate limit exceeded', 'limit' => API_RATE_LIMIT_MAX, 'window' => API_RATE_LIMIT_WINDOW]);
+        exit;
+    }
+    echo json_encode(getApiRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -118,6 +137,65 @@ function getRdapRecord($input) {
         'error' => $error,
         'fallback' => $fallback
     ];
+}
+
+// API 响应构建：仅返回原始数据
+//   RDAP 命中 → { domain, source: 'rdap', data: <原始 RDAP JSON> }
+//   WHOIS 命中 → { domain, source: 'whois', data: <原始 WHOIS 文本> }
+//   未注册 / 失败 → { domain, error: '...' }
+function getApiRecord($input) {
+    $record = getRdapRecord($input);
+    $api = ['domain' => isset($record['domain']) ? $record['domain'] : $input];
+    if (isset($record['rdap'])) {
+        $api['source'] = 'rdap';
+        $api['data'] = $record['rdap'];
+    } elseif (isset($record['whois'])) {
+        $api['source'] = 'whois';
+        $api['data'] = $record['whois'];
+    } elseif (isset($record['error'])) {
+        $api['error'] = $record['error'];
+    }
+    return $api;
+}
+
+// 获取客户端真实 IP（兼容反向代理 X-Forwarded-For）
+function getClientIp() {
+    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        $ip = trim($ips[0]);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+    }
+    if (!empty($_SERVER['HTTP_X_REAL_IP']) && filter_var($_SERVER['HTTP_X_REAL_IP'], FILTER_VALIDATE_IP)) {
+        return $_SERVER['HTTP_X_REAL_IP'];
+    }
+    return isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '0.0.0.0';
+}
+
+// API 限流：60 秒滑动窗口内同 IP 最多 30 次
+// 返回 true=允许，false=超限
+function checkApiRateLimit($ip) {
+    $now = time();
+    $data = [];
+    if (is_file(API_RATE_LIMIT_FILE)) {
+        $cached = json_decode(file_get_contents(API_RATE_LIMIT_FILE), true);
+        if (is_array($cached)) $data = $cached;
+    }
+
+    $record = isset($data[$ip]) ? $data[$ip] : ['count' => 0, 'window_start' => $now];
+    // 窗口已过期 → 重置
+    if ($now - $record['window_start'] >= API_RATE_LIMIT_WINDOW) {
+        $record = ['count' => 0, 'window_start' => $now];
+    }
+    $record['count']++;
+    $data[$ip] = $record;
+
+    // 顺带清理过期窗口，避免文件无限增长
+    foreach ($data as $key => $val) {
+        if ($now - $val['window_start'] >= API_RATE_LIMIT_WINDOW * 24) unset($data[$key]);
+    }
+
+    @file_put_contents(API_RATE_LIMIT_FILE, json_encode($data), LOCK_EX);
+    return $record['count'] <= API_RATE_LIMIT_MAX;
 }
 
 // 为域名查找 RDAP + WHOIS 服务器（多级后缀优先匹配）
