@@ -32,30 +32,67 @@ define('API_RATE_LIMIT_MAX', 30);
 $EXTRA_RDAP_SERVERS = [];
 
 // 请求处理：被 index.php 统一入口或 whois.php 直接访问时调用
-// 入口逻辑：?api=domain → API JSON（限流）；?domain=xxx → Web 查询 JSON；无 domain → 400
+// 入口逻辑：?api=domain → 纯原始数据（限流）；?domain=xxx → Web 查询 JSON；无 domain → 400
 function handleWhoisRequest() {
-    header('Content-Type: application/json; charset=utf-8');
     if (!isset($_GET['domain']) || $_GET['domain'] === '') {
+        header('Content-Type: application/json; charset=utf-8');
         http_response_code(400);
         echo json_encode(['error' => 'Missing domain parameter']);
         exit;
     }
 
-    // API 模式：?api=domain —— 仅返回原始数据（RDAP JSON 或 WHOIS 文本），未注册直接返回错误
-    // 查询逻辑与 Web 模式一致，区别仅在于响应精简（剥离 fallback/query_url 等内部字段）
+    // API 模式：?api=domain —— 纯原始数据，零包装
+    //   RDAP 命中 → 直接输出原始 RDAP JSON（application/rdap+json）
+    //   WHOIS 命中 → 直接输出原始 WHOIS 文本（text/plain）
+    //   未注册 → HTTP 404 + 纯文本错误
+    //   查询失败 → HTTP 502 + 纯文本错误
     if (isset($_GET['api']) && $_GET['api'] !== '') {
         // 限流检查
         if (!checkApiRateLimit(getClientIp())) {
             http_response_code(429);
             header('Retry-After: ' . API_RATE_LIMIT_WINDOW);
-            echo json_encode(['error' => 'Rate limit exceeded', 'limit' => API_RATE_LIMIT_MAX, 'window' => API_RATE_LIMIT_WINDOW]);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Rate limit exceeded';
             exit;
         }
-        echo json_encode(getApiRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
+        outputRawApiRecord($_GET['domain']);
         exit;
     }
 
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode(getRdapRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
+}
+
+// API 输出：纯原始数据，零包装
+function outputRawApiRecord($input) {
+    $record = getRdapRecord($input);
+
+    // RDAP 命中：直接输出原始 RDAP JSON
+    if (isset($record['rdap'])) {
+        header('Content-Type: application/rdap+json; charset=utf-8');
+        echo json_encode($record['rdap'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+
+    // WHOIS 命中：直接输出原始 WHOIS 文本
+    if (isset($record['whois'])) {
+        header('Content-Type: text/plain; charset=utf-8');
+        echo $record['whois'];
+        return;
+    }
+
+    // 未注册：HTTP 404
+    if (isset($record['error']) && $record['error'] === 'Domain Not Registered') {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Domain Not Registered';
+        return;
+    }
+
+    // 其他失败：HTTP 502
+    http_response_code(502);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo isset($record['error']) ? $record['error'] : 'Query failed';
 }
 
 // 直接访问 whois.php 时自动处理请求；被 index.php include 时不自动执行（由 index.php 调用）
@@ -145,25 +182,6 @@ function getRdapRecord($input) {
         'error' => $error,
         'fallback' => $fallback
     ];
-}
-
-// API 响应构建：仅返回原始数据
-//   RDAP 命中 → { domain, source: 'rdap', data: <原始 RDAP JSON> }
-//   WHOIS 命中 → { domain, source: 'whois', data: <原始 WHOIS 文本> }
-//   未注册 / 失败 → { domain, error: '...' }
-function getApiRecord($input) {
-    $record = getRdapRecord($input);
-    $api = ['domain' => isset($record['domain']) ? $record['domain'] : $input];
-    if (isset($record['rdap'])) {
-        $api['source'] = 'rdap';
-        $api['data'] = $record['rdap'];
-    } elseif (isset($record['whois'])) {
-        $api['source'] = 'whois';
-        $api['data'] = $record['whois'];
-    } elseif (isset($record['error'])) {
-        $api['error'] = $record['error'];
-    }
-    return $api;
 }
 
 // 获取客户端真实 IP（兼容反向代理 X-Forwarded-For）

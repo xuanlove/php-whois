@@ -956,15 +956,15 @@ header('Content-Type: text/html; charset=utf-8');
                                     <div class="api-docs-block mb-3">
                                         <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiResponse">响应格式</div>
                                         <ul class="api-param-list">
-                                            <li><span data-i18n="apiRespRdap">RDAP 命中：返回 source: rdap + data（原始 RDAP JSON）</span></li>
-                                            <li><span data-i18n="apiRespWhois">WHOIS 命中：返回 source: whois + data（原始 WHOIS 文本）</span></li>
-                                            <li><span data-i18n="apiRespUnregistered">未注册：返回 error: Domain Not Registered</span></li>
-                                            <li><span data-i18n="apiRespFailed">查询失败：返回 error 字段描述失败原因</span></li>
+                                            <li><span data-i18n="apiRespRdap">RDAP 命中：HTTP 200，Content-Type: application/rdap+json，直接返回原始 RDAP JSON</span></li>
+                                            <li><span data-i18n="apiRespWhois">WHOIS 命中：HTTP 200，Content-Type: text/plain，直接返回原始 WHOIS 文本</span></li>
+                                            <li><span data-i18n="apiRespUnregistered">未注册：HTTP 404，Content-Type: text/plain，返回 Domain Not Registered</span></li>
+                                            <li><span data-i18n="apiRespFailed">查询失败：HTTP 502，Content-Type: text/plain，返回错误信息</span></li>
                                         </ul>
                                     </div>
                                     <div class="api-docs-block">
                                         <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiRateLimit">限流规则</div>
-                                        <p class="text-sm" style="color: var(--text-secondary);" data-i18n="apiRateLimitDesc">同一 IP 60 秒内最多查询 30 次，超限返回 HTTP 429（含 Retry-After 头）。</p>
+                                        <p class="text-sm" style="color: var(--text-secondary);" data-i18n="apiRateLimitDesc">同一 IP 60 秒内最多查询 30 次，超限返回 HTTP 429（含 Retry-After 头，纯文本响应）。</p>
                                     </div>
                                 </div>
                             </section>
@@ -2189,12 +2189,12 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiParamDomain': '必填，要查询的域名或 IP',
                                 'apiParamApi': '必填，固定值 domain，启用 API 模式',
                                 'apiResponse': '响应格式',
-                                'apiRespRdap': 'RDAP 命中：返回 source: rdap + data（原始 RDAP JSON）',
-                                'apiRespWhois': 'WHOIS 命中：返回 source: whois + data（原始 WHOIS 文本）',
-                                'apiRespUnregistered': '未注册：返回 error: Domain Not Registered',
-                                'apiRespFailed': '查询失败：返回 error 字段描述失败原因',
+                                'apiRespRdap': 'RDAP 命中：HTTP 200，Content-Type: application/rdap+json，直接返回原始 RDAP JSON',
+                                'apiRespWhois': 'WHOIS 命中：HTTP 200，Content-Type: text/plain，直接返回原始 WHOIS 文本',
+                                'apiRespUnregistered': '未注册：HTTP 404，Content-Type: text/plain，返回 Domain Not Registered',
+                                'apiRespFailed': '查询失败：HTTP 502，Content-Type: text/plain，返回错误信息',
                                 'apiRateLimit': '限流规则',
-                                'apiRateLimitDesc': '同一 IP 60 秒内最多查询 30 次，超限返回 HTTP 429（含 Retry-After 头）。',
+                                'apiRateLimitDesc': '同一 IP 60 秒内最多查询 30 次，超限返回 HTTP 429（含 Retry-After 头，纯文本响应）。',
                                 'searchAgain': '再次查询',
                                 'whoisOverview': 'WHOIS 信息概览',
                                 'ipOverview': 'IP 信息概览',
@@ -2277,12 +2277,12 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiParamDomain': '必填，要查詢的域名或 IP',
                                 'apiParamApi': '必填，固定值 domain，啟用 API 模式',
                                 'apiResponse': '回應格式',
-                                'apiRespRdap': 'RDAP 命中：返回 source: rdap + data（原始 RDAP JSON）',
-                                'apiRespWhois': 'WHOIS 命中：返回 source: whois + data（原始 WHOIS 文字）',
-                                'apiRespUnregistered': '未註冊：返回 error: Domain Not Registered',
-                                'apiRespFailed': '查詢失敗：返回 error 欄位描述失敗原因',
+                                'apiRespRdap': 'RDAP 命中：HTTP 200，Content-Type: application/rdap+json，直接返回原始 RDAP JSON',
+                                'apiRespWhois': 'WHOIS 命中：HTTP 200，Content-Type: text/plain，直接返回原始 WHOIS 文字',
+                                'apiRespUnregistered': '未註冊：HTTP 404，Content-Type: text/plain，返回 Domain Not Registered',
+                                'apiRespFailed': '查詢失敗：HTTP 502，Content-Type: text/plain，返回錯誤訊息',
                                 'apiRateLimit': '限流規則',
-                                'apiRateLimitDesc': '同一 IP 60 秒內最多查詢 30 次，超限返回 HTTP 429（含 Retry-After 標頭）。',
+                                'apiRateLimitDesc': '同一 IP 60 秒內最多查詢 30 次，超限返回 HTTP 429（含 Retry-After 標頭，純文字回應）。',
                                 'searchAgain': '再次查詢',
                                 'whoisOverview': 'WHOIS 信息概覽',
                                 'ipOverview': 'IP 資訊概覽',
@@ -2365,12 +2365,12 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiParamDomain': 'Required. Domain or IP to query.',
                                 'apiParamApi': 'Required. Fixed value domain, enables API mode.',
                                 'apiResponse': 'Response Format',
-                                'apiRespRdap': 'RDAP hit: returns source: rdap + data (raw RDAP JSON)',
-                                'apiRespWhois': 'WHOIS hit: returns source: whois + data (raw WHOIS text)',
-                                'apiRespUnregistered': 'Unregistered: returns error: Domain Not Registered',
-                                'apiRespFailed': 'Query failed: returns error field describing the failure',
+                                'apiRespRdap': 'RDAP hit: HTTP 200, Content-Type: application/rdap+json, returns raw RDAP JSON directly',
+                                'apiRespWhois': 'WHOIS hit: HTTP 200, Content-Type: text/plain, returns raw WHOIS text directly',
+                                'apiRespUnregistered': 'Unregistered: HTTP 404, Content-Type: text/plain, returns Domain Not Registered',
+                                'apiRespFailed': 'Query failed: HTTP 502, Content-Type: text/plain, returns error message',
                                 'apiRateLimit': 'Rate Limit',
-                                'apiRateLimitDesc': 'Up to 30 queries per IP within 60 seconds. Exceeding returns HTTP 429 (with Retry-After header).',
+                                'apiRateLimitDesc': 'Up to 30 queries per IP within 60 seconds. Exceeding returns HTTP 429 (with Retry-After header, plain-text response).',
                                 'searchAgain': 'Search Again',
                                 'whoisOverview': 'WHOIS Information Overview',
                                 'ipOverview': 'IP Information Overview',
@@ -2453,12 +2453,12 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiParamDomain': 'Обязательно. Домен или IP для запроса.',
                                 'apiParamApi': 'Обязательно. Фиксированное значение domain, включает режим API.',
                                 'apiResponse': 'Формат ответа',
-                                'apiRespRdap': 'RDAP найден: возвращает source: rdap + data (исходный RDAP JSON)',
-                                'apiRespWhois': 'WHOIS найден: возвращает source: whois + data (исходный текст WHOIS)',
-                                'apiRespUnregistered': 'Не зарегистрирован: возвращает error: Domain Not Registered',
-                                'apiRespFailed': 'Ошибка запроса: возвращает поле error с описанием причины',
+                                'apiRespRdap': 'RDAP найден: HTTP 200, Content-Type: application/rdap+json, возвращает исходный RDAP JSON напрямую',
+                                'apiRespWhois': 'WHOIS найден: HTTP 200, Content-Type: text/plain, возвращает исходный текст WHOIS напрямую',
+                                'apiRespUnregistered': 'Не зарегистрирован: HTTP 404, Content-Type: text/plain, возвращает Domain Not Registered',
+                                'apiRespFailed': 'Ошибка запроса: HTTP 502, Content-Type: text/plain, возвращает сообщение об ошибке',
                                 'apiRateLimit': 'Ограничение частоты',
-                                'apiRateLimitDesc': 'До 30 запросов с одного IP за 60 секунд. Превышение возвращает HTTP 429 (с заголовком Retry-After).',
+                                'apiRateLimitDesc': 'До 30 запросов с одного IP за 60 секунд. Превышение возвращает HTTP 429 (с заголовком Retry-After, текстовый ответ).',
                                 'searchAgain': 'Искать снова',
                                 'whoisOverview': 'Обзор информации WHOIS',
                                 'ipOverview': 'Обзор IP-информации',
@@ -2541,12 +2541,12 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiParamDomain': 'Obligatorio. Dominio o IP a consultar.',
                                 'apiParamApi': 'Obligatorio. Valor fijo domain, activa el modo API.',
                                 'apiResponse': 'Formato de respuesta',
-                                'apiRespRdap': 'RDAP encontrado: devuelve source: rdap + data (JSON RDAP sin procesar)',
-                                'apiRespWhois': 'WHOIS encontrado: devuelve source: whois + data (texto WHOIS sin procesar)',
-                                'apiRespUnregistered': 'No registrado: devuelve error: Domain Not Registered',
-                                'apiRespFailed': 'Consulta fallida: devuelve el campo error con la causa',
+                                'apiRespRdap': 'RDAP encontrado: HTTP 200, Content-Type: application/rdap+json, devuelve el JSON RDAP sin procesar',
+                                'apiRespWhois': 'WHOIS encontrado: HTTP 200, Content-Type: text/plain, devuelve el texto WHOIS sin procesar',
+                                'apiRespUnregistered': 'No registrado: HTTP 404, Content-Type: text/plain, devuelve Domain Not Registered',
+                                'apiRespFailed': 'Consulta fallida: HTTP 502, Content-Type: text/plain, devuelve mensaje de error',
                                 'apiRateLimit': 'Límite de frecuencia',
-                                'apiRateLimitDesc': 'Hasta 30 consultas por IP en 60 segundos. Superarlo devuelve HTTP 429 (con cabecera Retry-After).',
+                                'apiRateLimitDesc': 'Hasta 30 consultas por IP en 60 segundos. Superarlo devuelve HTTP 429 (con cabecera Retry-After, respuesta de texto).',
                                 'searchAgain': 'Buscar de nuevo',
                                 'whoisOverview': 'Resumen de información WHOIS',
                                 'ipOverview': 'Resumen de información IP',
