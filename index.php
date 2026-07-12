@@ -830,6 +830,30 @@ header('Content-Type: text/html; charset=utf-8');
             transform: scale(0.92);
         }
 
+        /* 底部页脚 */
+        .app-footer {
+            padding: 16px 20px 20px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            border-top: 1px solid var(--glass-border);
+            margin-top: 20px;
+        }
+        .app-footer a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        .app-footer a:hover {
+            opacity: 0.8;
+        }
+        .app-footer .footer-divider {
+            margin: 0 8px;
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
         /* 遮罩层 */
         .drawer-overlay {
             position: fixed;
@@ -968,6 +992,14 @@ header('Content-Type: text/html; charset=utf-8');
                                     </div>
                                 </div>
                             </section>
+                            <!-- 底部页脚 -->
+                            <footer class="app-footer">
+                                <span data-i18n="footerCopyright">软件信息归属</span>
+                                <a href="https://www.xuanlove.cn" target="_blank" rel="noopener">xuanlove.cn</a>
+                                <span class="footer-divider">·</span>
+                                <span data-i18n="footerSource">开源仓库</span>
+                                <a href="https://github.com/xuanlove/php-whois" target="_blank" rel="noopener">GitHub</a>
+                            </footer>
                         </div>
                     </div>
                 </div>
@@ -2218,6 +2250,8 @@ header('Content-Type: text/html; charset=utf-8');
                                 'copiedToClipboard': '原始信息已复制到剪贴板',
                                 'copyFailed': '复制失败，请手动复制',
                                 'screenshotFailed': '截图失败，请稍后重试',
+                                'footerCopyright': '软件信息归属',
+                                'footerSource': '开源仓库',
                                 'domainName': '域名',
                                 'registrar': '注册商',
                                 'updatedDate': '更新日',
@@ -2305,6 +2339,8 @@ header('Content-Type: text/html; charset=utf-8');
                                 'copiedToClipboard': '原始信息已複製到剪貼板',
                                 'copyFailed': '複製失敗，請手動複製',
                                 'screenshotFailed': '截圖失敗，請稍後重試',
+                                'footerCopyright': '軟體資訊歸屬',
+                                'footerSource': '開源倉庫',
                                 'domainName': '域名',
                                 'registrar': '註冊商',
                                 'updatedDate': '更新日',
@@ -2392,6 +2428,8 @@ header('Content-Type: text/html; charset=utf-8');
                                 'copiedToClipboard': 'Original information copied to clipboard',
                                 'copyFailed': 'Copy failed, please copy manually',
                                 'screenshotFailed': 'Screenshot failed, please try again later',
+                                'footerCopyright': 'Software attribution',
+                                'footerSource': 'Open source repository',
                                 'domainName': 'Domain Name',
                                 'registrar': 'Registrar',
                                 'updatedDate': 'Updated Date',
@@ -2479,6 +2517,8 @@ header('Content-Type: text/html; charset=utf-8');
                                 'copiedToClipboard': 'Оригинальная информация скопирована в буфер обмена',
                                 'copyFailed': 'Не удалось скопировать, пожалуйста, скопируйте вручную',
                                 'screenshotFailed': 'Не удалось сделать скриншот, попробуйте позже',
+                                'footerCopyright': 'Принадлежность ПО',
+                                'footerSource': 'Открытый репозиторий',
                                 'domainName': 'Доменное имя',
                                 'registrar': 'Регистратор',
                                 'updatedDate': 'Дата обновления',
@@ -2566,6 +2606,8 @@ header('Content-Type: text/html; charset=utf-8');
                                 'copiedToClipboard': 'Información original copiada al portapapeles',
                                 'copyFailed': 'Error al copiar, por favor copie manualmente',
                                 'screenshotFailed': 'Error al tomar captura de pantalla, intente nuevamente más tarde',
+                                'footerCopyright': 'Atribución del software',
+                                'footerSource': 'Repositorio de código abierto',
                                 'domainName': 'Nombre de dominio',
                                 'registrar': 'Registrador',
                                 'updatedDate': 'Fecha de actualización',
