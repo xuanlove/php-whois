@@ -19,7 +19,7 @@ header('Content-Type: text/html; charset=utf-8');
     <title data-i18n="title">WHOIS 查询</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/dom-to-image/2.6.0/dom-to-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
     <script>
         // ===== 轻量内嵌 i18n（兼容 i18next.t 接口，零外部依赖） =====
         window.i18next = (function () {
@@ -2100,6 +2100,11 @@ header('Content-Type: text/html; charset=utf-8');
                 const currentDomain = window.location.hostname;
                 const currentQueryDomain = domainInput.value.trim();
                 const saveBtn = $('#saveScreenshot');
+
+                if (!element || typeof domtoimage === 'undefined') {
+                    showToast('screenshotFailed');
+                    return;
+                }
 
                 // 临时隐藏截图按钮
                 saveBtn.style.display = 'none';
