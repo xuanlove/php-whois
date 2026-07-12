@@ -32,16 +32,9 @@ define('API_RATE_LIMIT_MAX', 30);
 $EXTRA_RDAP_SERVERS = [];
 
 // 请求处理：被 index.php 统一入口或 whois.php 直接访问时调用
-// 入口逻辑：?api=domain → 纯原始数据（限流）；?domain=xxx → Web 查询 JSON；无 domain → 400
+// 入口逻辑：?api=<domain> → 纯原始数据（限流）；?domain=<domain> → Web 查询 JSON；两者皆无 → 400
 function handleWhoisRequest() {
-    if (!isset($_GET['domain']) || $_GET['domain'] === '') {
-        header('Content-Type: application/json; charset=utf-8');
-        http_response_code(400);
-        echo json_encode(['error' => 'Missing domain parameter']);
-        exit;
-    }
-
-    // API 模式：?api=domain —— 纯原始数据，零包装
+    // API 模式：?api=<domain> —— 纯原始数据，零包装
     //   RDAP 命中 → 直接输出原始 RDAP JSON（application/rdap+json）
     //   WHOIS 命中 → 直接输出原始 WHOIS 文本（text/plain）
     //   未注册 → HTTP 404 + 纯文本错误
@@ -55,7 +48,15 @@ function handleWhoisRequest() {
             echo 'Rate limit exceeded';
             exit;
         }
-        outputRawApiRecord($_GET['domain']);
+        outputRawApiRecord($_GET['api']);
+        exit;
+    }
+
+    // Web 模式：?domain=<domain> —— 返回结构化 JSON 供前端使用
+    if (!isset($_GET['domain']) || $_GET['domain'] === '') {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing domain parameter']);
         exit;
     }
 

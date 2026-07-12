@@ -1,8 +1,8 @@
 <?php
-// 统一入口：?domain=xxx 返回查询 JSON（含 ?api=domain 的 API 模式），否则输出 HTML 页面
+// 统一入口：?api=<domain> → 原始数据 API；?domain=<domain> → Web JSON；否则输出 HTML 页面
 define('INDEX_PHP', true);
 require __DIR__ . '/whois.php';
-if (isset($_GET['domain']) && $_GET['domain'] !== '') {
+if ((isset($_GET['api']) && $_GET['api'] !== '') || (isset($_GET['domain']) && $_GET['domain'] !== '')) {
     handleWhoisRequest();
     exit;
 }
@@ -944,13 +944,12 @@ header('Content-Type: text/html; charset=utf-8');
                                     <p class="text-sm mb-3" style="color: var(--text-secondary);" data-i18n="apiDocsDesc">通过 API 获取原始 WHOIS/RDAP 数据，查询逻辑与网页一致，仅返回原始数据。</p>
                                     <div class="api-docs-block mb-3">
                                         <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiEndpoint">接口地址</div>
-                                        <code class="api-code" id="apiEndpointUrl">?api=domain&amp;domain=example.com</code>
+                                        <code class="api-code" id="apiEndpointUrl">?api=example.com</code>
                                     </div>
                                     <div class="api-docs-block mb-3">
                                         <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiParams">请求参数</div>
                                         <ul class="api-param-list">
-                                            <li><code>domain</code> <span data-i18n="apiParamDomain">必填，要查询的域名或 IP</span></li>
-                                            <li><code>api</code> <span data-i18n="apiParamApi">必填，固定值 domain，启用 API 模式</span></li>
+                                            <li><code>api</code> <span data-i18n="apiParamApi">必填，要查询的域名或 IP，启用 API 模式</span></li>
                                         </ul>
                                     </div>
                                     <div class="api-docs-block mb-3">
@@ -1042,12 +1041,12 @@ header('Content-Type: text/html; charset=utf-8');
                 updateApiEndpointUrl();
             }
 
-            // 动态生成 API 接口地址：基于当前页面 URL + ?api=domain&domain=example.com
+            // 动态生成 API 接口地址：基于当前页面 URL + ?api=example.com
             function updateApiEndpointUrl() {
                 var el = $('#apiEndpointUrl');
                 if (!el) return;
                 var base = window.location.origin + window.location.pathname;
-                el.textContent = base + '?api=domain&domain=' + i18next.t('apiDomainExample');
+                el.textContent = base + '?api=' + i18next.t('apiDomainExample');
             }
 
             function bindEvents() {
@@ -2186,8 +2185,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiEndpoint': '接口地址',
                                 'apiDomainExample': 'example.com',
                                 'apiParams': '请求参数',
-                                'apiParamDomain': '必填，要查询的域名或 IP',
-                                'apiParamApi': '必填，固定值 domain，启用 API 模式',
+                                'apiParamApi': '必填，要查询的域名或 IP，启用 API 模式',
                                 'apiResponse': '响应格式',
                                 'apiRespRdap': 'RDAP 命中：HTTP 200，Content-Type: application/rdap+json，直接返回原始 RDAP JSON',
                                 'apiRespWhois': 'WHOIS 命中：HTTP 200，Content-Type: text/plain，直接返回原始 WHOIS 文本',
@@ -2274,8 +2272,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiEndpoint': '介面地址',
                                 'apiDomainExample': 'example.com',
                                 'apiParams': '請求參數',
-                                'apiParamDomain': '必填，要查詢的域名或 IP',
-                                'apiParamApi': '必填，固定值 domain，啟用 API 模式',
+                                'apiParamApi': '必填，要查詢的域名或 IP，啟用 API 模式',
                                 'apiResponse': '回應格式',
                                 'apiRespRdap': 'RDAP 命中：HTTP 200，Content-Type: application/rdap+json，直接返回原始 RDAP JSON',
                                 'apiRespWhois': 'WHOIS 命中：HTTP 200，Content-Type: text/plain，直接返回原始 WHOIS 文字',
@@ -2362,8 +2359,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiEndpoint': 'Endpoint',
                                 'apiDomainExample': 'example.com',
                                 'apiParams': 'Parameters',
-                                'apiParamDomain': 'Required. Domain or IP to query.',
-                                'apiParamApi': 'Required. Fixed value domain, enables API mode.',
+                                'apiParamApi': 'Required. Domain or IP to query, enables API mode.',
                                 'apiResponse': 'Response Format',
                                 'apiRespRdap': 'RDAP hit: HTTP 200, Content-Type: application/rdap+json, returns raw RDAP JSON directly',
                                 'apiRespWhois': 'WHOIS hit: HTTP 200, Content-Type: text/plain, returns raw WHOIS text directly',
@@ -2450,8 +2446,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiEndpoint': 'Адрес эндпоинта',
                                 'apiDomainExample': 'example.com',
                                 'apiParams': 'Параметры запроса',
-                                'apiParamDomain': 'Обязательно. Домен или IP для запроса.',
-                                'apiParamApi': 'Обязательно. Фиксированное значение domain, включает режим API.',
+                                'apiParamApi': 'Обязательно. Домен или IP для запроса, включает режим API.',
                                 'apiResponse': 'Формат ответа',
                                 'apiRespRdap': 'RDAP найден: HTTP 200, Content-Type: application/rdap+json, возвращает исходный RDAP JSON напрямую',
                                 'apiRespWhois': 'WHOIS найден: HTTP 200, Content-Type: text/plain, возвращает исходный текст WHOIS напрямую',
@@ -2538,8 +2533,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiEndpoint': 'Endpoint',
                                 'apiDomainExample': 'example.com',
                                 'apiParams': 'Parámetros',
-                                'apiParamDomain': 'Obligatorio. Dominio o IP a consultar.',
-                                'apiParamApi': 'Obligatorio. Valor fijo domain, activa el modo API.',
+                                'apiParamApi': 'Obligatorio. Dominio o IP a consultar, activa el modo API.',
                                 'apiResponse': 'Formato de respuesta',
                                 'apiRespRdap': 'RDAP encontrado: HTTP 200, Content-Type: application/rdap+json, devuelve el JSON RDAP sin procesar',
                                 'apiRespWhois': 'WHOIS encontrado: HTTP 200, Content-Type: text/plain, devuelve el texto WHOIS sin procesar',
