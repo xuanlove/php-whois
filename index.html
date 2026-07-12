@@ -593,6 +593,58 @@
         }
         .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
+        /* ===== API 使用说明 ===== */
+        .api-docs .api-code {
+            display: block;
+            font-family: "Space Grotesk", "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.8rem;
+            padding: 0.6rem 0.75rem;
+            background: var(--tag-bg);
+            color: var(--tag-text);
+            border-radius: 0.5rem;
+            word-break: break-all;
+            border: 1px solid var(--inner-glass-border);
+        }
+
+        .api-docs .api-param-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+
+        .api-docs .api-param-list li {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding-left: 0.875rem;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        .api-docs .api-param-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.55rem;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--accent);
+            opacity: 0.7;
+        }
+
+        .api-docs .api-param-list code {
+            font-family: "Space Grotesk", "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.78rem;
+            padding: 0.1rem 0.4rem;
+            background: var(--tag-bg);
+            color: var(--tag-text);
+            border-radius: 0.3rem;
+            margin-right: 0.25rem;
+        }
+
         /* ===== 动画 ===== */
         @keyframes spin {
             to { transform: rotate(360deg); }
@@ -865,11 +917,47 @@
                         </div>
                     </form>
 
-                    <!-- 结果区 -->
-                    <div id="resultDiv" class="hidden flex-1 overflow-hidden">
+                    <!-- 结果区 + API 使用说明（共用滚动区，API 说明始终可见） -->
+                    <div id="resultDiv" class="flex-1 overflow-hidden">
                         <div class="h-full overflow-y-auto scroll-area result-container pr-1">
                             <div id="importantInfo"></div>
                             <div id="originalInfo" class="mt-4"></div>
+                            <!-- API 使用说明 -->
+                            <section class="api-docs mt-4">
+                                <div class="glass-inner rounded-2xl p-4 sm:p-5">
+                                    <h3 class="text-base font-bold flex items-center gap-2 mb-3" style="color: var(--text-primary);">
+                                        <svg class="w-4 h-4" style="color: var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                        </svg>
+                                        <span data-i18n="apiDocsTitle">API 使用说明</span>
+                                    </h3>
+                                    <p class="text-sm mb-3" style="color: var(--text-secondary);" data-i18n="apiDocsDesc">通过 API 获取原始 WHOIS/RDAP 数据，查询逻辑与网页一致，仅返回原始数据。</p>
+                                    <div class="api-docs-block mb-3">
+                                        <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiEndpoint">接口地址</div>
+                                        <code class="api-code">whois.php?api=domain&amp;domain=<span data-i18n="apiDomainExample">example.com</span></code>
+                                    </div>
+                                    <div class="api-docs-block mb-3">
+                                        <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiParams">请求参数</div>
+                                        <ul class="api-param-list">
+                                            <li><code>domain</code> <span data-i18n="apiParamDomain">必填，要查询的域名或 IP</span></li>
+                                            <li><code>api</code> <span data-i18n="apiParamApi">必填，固定值 domain，启用 API 模式</span></li>
+                                        </ul>
+                                    </div>
+                                    <div class="api-docs-block mb-3">
+                                        <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiResponse">响应格式</div>
+                                        <ul class="api-param-list">
+                                            <li><span data-i18n="apiRespRdap">RDAP 命中：返回 source: rdap + data（原始 RDAP JSON）</span></li>
+                                            <li><span data-i18n="apiRespWhois">WHOIS 命中：返回 source: whois + data（原始 WHOIS 文本）</span></li>
+                                            <li><span data-i18n="apiRespUnregistered">未注册：返回 error: Domain Not Registered</span></li>
+                                            <li><span data-i18n="apiRespFailed">查询失败：返回 error 字段描述失败原因</span></li>
+                                        </ul>
+                                    </div>
+                                    <div class="api-docs-block">
+                                        <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiRateLimit">限流规则</div>
+                                        <p class="text-sm" style="color: var(--text-secondary);" data-i18n="apiRateLimitDesc">同一 IP 60 秒内最多查询 30 次，超限返回 HTTP 429（含 Retry-After 头）。</p>
+                                    </div>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -2074,6 +2162,20 @@
                                 'searching': '查询中',
                                 'recentSearches': '最近查询',
                                 'noHistory': '暂无历史查询记录',
+                                'apiDocsTitle': 'API 使用说明',
+                                'apiDocsDesc': '通过 API 获取原始 WHOIS/RDAP 数据，查询逻辑与网页一致，仅返回原始数据。',
+                                'apiEndpoint': '接口地址',
+                                'apiDomainExample': 'example.com',
+                                'apiParams': '请求参数',
+                                'apiParamDomain': '必填，要查询的域名或 IP',
+                                'apiParamApi': '必填，固定值 domain，启用 API 模式',
+                                'apiResponse': '响应格式',
+                                'apiRespRdap': 'RDAP 命中：返回 source: rdap + data（原始 RDAP JSON）',
+                                'apiRespWhois': 'WHOIS 命中：返回 source: whois + data（原始 WHOIS 文本）',
+                                'apiRespUnregistered': '未注册：返回 error: Domain Not Registered',
+                                'apiRespFailed': '查询失败：返回 error 字段描述失败原因',
+                                'apiRateLimit': '限流规则',
+                                'apiRateLimitDesc': '同一 IP 60 秒内最多查询 30 次，超限返回 HTTP 429（含 Retry-After 头）。',
                                 'searchAgain': '再次查询',
                                 'whoisOverview': 'WHOIS 信息概览',
                                 'ipOverview': 'IP 信息概览',
@@ -2148,6 +2250,20 @@
                                 'searching': '查詢中',
                                 'recentSearches': '最近查詢',
                                 'noHistory': '暫無歷史查詢記錄',
+                                'apiDocsTitle': 'API 使用說明',
+                                'apiDocsDesc': '透過 API 取得原始 WHOIS/RDAP 資料，查詢邏輯與網頁一致，僅返回原始資料。',
+                                'apiEndpoint': '介面地址',
+                                'apiDomainExample': 'example.com',
+                                'apiParams': '請求參數',
+                                'apiParamDomain': '必填，要查詢的域名或 IP',
+                                'apiParamApi': '必填，固定值 domain，啟用 API 模式',
+                                'apiResponse': '回應格式',
+                                'apiRespRdap': 'RDAP 命中：返回 source: rdap + data（原始 RDAP JSON）',
+                                'apiRespWhois': 'WHOIS 命中：返回 source: whois + data（原始 WHOIS 文字）',
+                                'apiRespUnregistered': '未註冊：返回 error: Domain Not Registered',
+                                'apiRespFailed': '查詢失敗：返回 error 欄位描述失敗原因',
+                                'apiRateLimit': '限流規則',
+                                'apiRateLimitDesc': '同一 IP 60 秒內最多查詢 30 次，超限返回 HTTP 429（含 Retry-After 標頭）。',
                                 'searchAgain': '再次查詢',
                                 'whoisOverview': 'WHOIS 信息概覽',
                                 'ipOverview': 'IP 資訊概覽',
@@ -2222,6 +2338,20 @@
                                 'searching': 'Searching',
                                 'recentSearches': 'Recent Searches',
                                 'noHistory': 'No search history',
+                                'apiDocsTitle': 'API Usage',
+                                'apiDocsDesc': 'Retrieve raw WHOIS/RDAP data via API. Query logic matches the web interface; only raw data is returned.',
+                                'apiEndpoint': 'Endpoint',
+                                'apiDomainExample': 'example.com',
+                                'apiParams': 'Parameters',
+                                'apiParamDomain': 'Required. Domain or IP to query.',
+                                'apiParamApi': 'Required. Fixed value domain, enables API mode.',
+                                'apiResponse': 'Response Format',
+                                'apiRespRdap': 'RDAP hit: returns source: rdap + data (raw RDAP JSON)',
+                                'apiRespWhois': 'WHOIS hit: returns source: whois + data (raw WHOIS text)',
+                                'apiRespUnregistered': 'Unregistered: returns error: Domain Not Registered',
+                                'apiRespFailed': 'Query failed: returns error field describing the failure',
+                                'apiRateLimit': 'Rate Limit',
+                                'apiRateLimitDesc': 'Up to 30 queries per IP within 60 seconds. Exceeding returns HTTP 429 (with Retry-After header).',
                                 'searchAgain': 'Search Again',
                                 'whoisOverview': 'WHOIS Information Overview',
                                 'ipOverview': 'IP Information Overview',
@@ -2296,6 +2426,20 @@
                                 'searching': 'Поиск...',
                                 'recentSearches': 'Недавние запросы',
                                 'noHistory': 'Нет истории поиска',
+                                'apiDocsTitle': 'Использование API',
+                                'apiDocsDesc': 'Получайте исходные данные WHOIS/RDAP через API. Логика запросов как на сайте; возвращаются только исходные данные.',
+                                'apiEndpoint': 'Адрес эндпоинта',
+                                'apiDomainExample': 'example.com',
+                                'apiParams': 'Параметры запроса',
+                                'apiParamDomain': 'Обязательно. Домен или IP для запроса.',
+                                'apiParamApi': 'Обязательно. Фиксированное значение domain, включает режим API.',
+                                'apiResponse': 'Формат ответа',
+                                'apiRespRdap': 'RDAP найден: возвращает source: rdap + data (исходный RDAP JSON)',
+                                'apiRespWhois': 'WHOIS найден: возвращает source: whois + data (исходный текст WHOIS)',
+                                'apiRespUnregistered': 'Не зарегистрирован: возвращает error: Domain Not Registered',
+                                'apiRespFailed': 'Ошибка запроса: возвращает поле error с описанием причины',
+                                'apiRateLimit': 'Ограничение частоты',
+                                'apiRateLimitDesc': 'До 30 запросов с одного IP за 60 секунд. Превышение возвращает HTTP 429 (с заголовком Retry-After).',
                                 'searchAgain': 'Искать снова',
                                 'whoisOverview': 'Обзор информации WHOIS',
                                 'ipOverview': 'Обзор IP-информации',
@@ -2370,6 +2514,20 @@
                                 'searching': 'Buscando...',
                                 'recentSearches': 'Búsquedas recientes',
                                 'noHistory': 'No hay historial de búsqueda',
+                                'apiDocsTitle': 'Uso de la API',
+                                'apiDocsDesc': 'Obtén datos sin procesar de WHOIS/RDAP mediante la API. La lógica de consulta coincide con la web; solo se devuelven datos sin procesar.',
+                                'apiEndpoint': 'Endpoint',
+                                'apiDomainExample': 'example.com',
+                                'apiParams': 'Parámetros',
+                                'apiParamDomain': 'Obligatorio. Dominio o IP a consultar.',
+                                'apiParamApi': 'Obligatorio. Valor fijo domain, activa el modo API.',
+                                'apiResponse': 'Formato de respuesta',
+                                'apiRespRdap': 'RDAP encontrado: devuelve source: rdap + data (JSON RDAP sin procesar)',
+                                'apiRespWhois': 'WHOIS encontrado: devuelve source: whois + data (texto WHOIS sin procesar)',
+                                'apiRespUnregistered': 'No registrado: devuelve error: Domain Not Registered',
+                                'apiRespFailed': 'Consulta fallida: devuelve el campo error con la causa',
+                                'apiRateLimit': 'Límite de frecuencia',
+                                'apiRateLimitDesc': 'Hasta 30 consultas por IP en 60 segundos. Superarlo devuelve HTTP 429 (con cabecera Retry-After).',
                                 'searchAgain': 'Buscar de nuevo',
                                 'whoisOverview': 'Resumen de información WHOIS',
                                 'ipOverview': 'Resumen de información IP',
