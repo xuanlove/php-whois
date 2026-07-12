@@ -8,7 +8,6 @@
 // 每个 TLD 详情页同时含 RDAP Server 和 WHOIS Server 字段
 // 查询优先级：RDAP 优先 → WHOIS 回退（TCP 43）→ ICANN 查询页降级
 error_reporting(0);
-header('Content-Type: application/json; charset=utf-8');
 
 define('ICANN_LOOKUP', 'https://lookup.icann.org/zh/lookup');
 define('ARIN_RDAP', 'https://rdap.arin.net/registry');
@@ -32,28 +31,37 @@ define('API_RATE_LIMIT_MAX', 30);
 // 已全部移除，改为直接走 WHOIS 查询。若将来某 ccTLD 部署了 RDAP，可在此补充。
 $EXTRA_RDAP_SERVERS = [];
 
-// 入口
-if (!isset($_GET['domain']) || $_GET['domain'] === '') {
-    http_response_code(400);
-    echo json_encode(['error' => 'Missing domain parameter']);
-    exit;
-}
-
-// API 模式：?api=domain —— 仅返回原始数据（RDAP JSON 或 WHOIS 文本），未注册直接返回错误
-// 查询逻辑与 Web 模式一致，区别仅在于响应精简（剥离 fallback/query_url 等内部字段）
-if (isset($_GET['api']) && $_GET['api'] !== '') {
-    // 限流检查
-    if (!checkApiRateLimit(getClientIp())) {
-        http_response_code(429);
-        header('Retry-After: ' . API_RATE_LIMIT_WINDOW);
-        echo json_encode(['error' => 'Rate limit exceeded', 'limit' => API_RATE_LIMIT_MAX, 'window' => API_RATE_LIMIT_WINDOW]);
+// 请求处理：被 index.php 统一入口或 whois.php 直接访问时调用
+// 入口逻辑：?api=domain → API JSON（限流）；?domain=xxx → Web 查询 JSON；无 domain → 400
+function handleWhoisRequest() {
+    header('Content-Type: application/json; charset=utf-8');
+    if (!isset($_GET['domain']) || $_GET['domain'] === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing domain parameter']);
         exit;
     }
-    echo json_encode(getApiRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
-    exit;
+
+    // API 模式：?api=domain —— 仅返回原始数据（RDAP JSON 或 WHOIS 文本），未注册直接返回错误
+    // 查询逻辑与 Web 模式一致，区别仅在于响应精简（剥离 fallback/query_url 等内部字段）
+    if (isset($_GET['api']) && $_GET['api'] !== '') {
+        // 限流检查
+        if (!checkApiRateLimit(getClientIp())) {
+            http_response_code(429);
+            header('Retry-After: ' . API_RATE_LIMIT_WINDOW);
+            echo json_encode(['error' => 'Rate limit exceeded', 'limit' => API_RATE_LIMIT_MAX, 'window' => API_RATE_LIMIT_WINDOW]);
+            exit;
+        }
+        echo json_encode(getApiRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    echo json_encode(getRdapRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
 }
 
-echo json_encode(getRdapRecord($_GET['domain']), JSON_UNESCAPED_UNICODE);
+// 直接访问 whois.php 时自动处理请求；被 index.php include 时不自动执行（由 index.php 调用）
+if (!defined('INDEX_PHP')) {
+    handleWhoisRequest();
+}
 
 // 主查询函数：RDAP 优先 → WHOIS 回退 → ICANN 降级
 // 服务器信息统一从 IANA 根数据库获取（同时含 RDAP 和 WHOIS）

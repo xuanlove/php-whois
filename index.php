@@ -1,3 +1,13 @@
+<?php
+// 统一入口：?domain=xxx 返回查询 JSON（含 ?api=domain 的 API 模式），否则输出 HTML 页面
+define('INDEX_PHP', true);
+require __DIR__ . '/whois.php';
+if (isset($_GET['domain']) && $_GET['domain'] !== '') {
+    handleWhoisRequest();
+    exit;
+}
+header('Content-Type: text/html; charset=utf-8');
+?>
 <!DOCTYPE html>
 <html lang="zh">
 
@@ -934,7 +944,7 @@
                                     <p class="text-sm mb-3" style="color: var(--text-secondary);" data-i18n="apiDocsDesc">通过 API 获取原始 WHOIS/RDAP 数据，查询逻辑与网页一致，仅返回原始数据。</p>
                                     <div class="api-docs-block mb-3">
                                         <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiEndpoint">接口地址</div>
-                                        <code class="api-code">whois.php?api=domain&amp;domain=<span data-i18n="apiDomainExample">example.com</span></code>
+                                        <code class="api-code" id="apiEndpointUrl">?api=domain&amp;domain=example.com</code>
                                     </div>
                                     <div class="api-docs-block mb-3">
                                         <div class="text-xs font-semibold mb-1" style="color: var(--text-muted);" data-i18n="apiParams">请求参数</div>
@@ -1029,6 +1039,15 @@
                 updateSearchHistory();
                 toggleClearButton();
                 initI18n();
+                updateApiEndpointUrl();
+            }
+
+            // 动态生成 API 接口地址：基于当前页面 URL + ?api=domain&domain=example.com
+            function updateApiEndpointUrl() {
+                var el = $('#apiEndpointUrl');
+                if (!el) return;
+                var base = window.location.origin + window.location.pathname;
+                el.textContent = base + '?api=domain&domain=' + i18next.t('apiDomainExample');
             }
 
             function bindEvents() {
@@ -1111,7 +1130,7 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-                fetch('whois.php?domain=' + encodeURIComponent(domain), {
+                fetch('?domain=' + encodeURIComponent(domain), {
                     signal: controller.signal,
                     headers: { 'Accept': 'application/json' }
                 })
@@ -2619,6 +2638,7 @@
             function handleLanguageChange() {
                 i18next.changeLanguage(this.value, function () {
                     updateContent();
+                    updateApiEndpointUrl();
                 });
             }
 

@@ -1,10 +1,10 @@
 // WHOIS 查询工具 Service Worker
 // 缓存策略：静态资源用缓存优先，whois.php 与 locales/*.json 走网络。
 
-const CACHE_NAME = 'whois-cache-v1';
+const CACHE_NAME = 'whois-cache-v2';
 const STATIC_ASSETS = [
     '/',
-    '/index.html',
+    '/index.php',
     '/manifest.json',
     '/whois.json'
 ];
@@ -76,7 +76,7 @@ self.addEventListener('fetch', function (event) {
                     }
                     return resp;
                 }).catch(function () {
-                    return caches.match('/index.html');
+                    return caches.match('/index.php');
                 });
             })
         );

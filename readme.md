@@ -43,8 +43,8 @@
 
 ```
 .
-├── index.html          # 前端（HTML + CSS + JS 全部内嵌）
-├── whois.php           # 后端查询接口
+├── index.php           # 统一入口（前端页面 + API 路由，HTML/CSS/JS 全部内嵌）
+├── whois.php           # 后端查询库（被 index.php include，也可独立访问）
 ├── manifest.json       # PWA 配置
 ├── service-worker.js   # PWA 离线缓存策略
 ├── locales/            # 旧版语言文件（已被内嵌字典取代，保留兼容）
@@ -87,7 +87,7 @@
 
 3. 确保 Web 服务器支持 PHP（建议 PHP 7.4+，需启用 cURL 与 intl 扩展）。
 
-4. 访问 `index.html` 即可使用。
+4. 访问 `index.php` 即可使用。
 
 > 服务器需能访问 `iana.org`（用于动态发现服务器）与各 RDAP/WHOIS 服务器。首次查询某 TLD 时会抓取 IANA 详情页并缓存到 `servers-cache.json`，后续 7 天内直接读缓存。
 
@@ -106,7 +106,7 @@
 
 ```
 location / {
-    try_files $uri $uri/ /index.html;
+    try_files $uri $uri/ /index.php;
 }
 ```
 
