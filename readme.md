@@ -61,7 +61,7 @@
 - **数据源**：
   - IANA 根数据库（`https://www.iana.org/domains/root/db/<tld>`）—— 域名/IP 服务器发现
   - [IEEE OUI 数据库](https://github.com/WH-2099/macdb)（`mac.csv`）—— MAC 地址厂商查询
-  - `https://tool.xuanlove.host/ip/` —— IP 归属地查询主源（自建，基于 ip-api.com）
+  - `https://tool.xuanlove.host/ip/` —— IP 归属地查询主源（自建，基于 [Merged-IP-Data](https://github.com/NetworkCats/Merged-IP-Data/) 数据库）
   - `ip-api.com` 免费版 —— IP 归属地查询回退
 
 ## 文件结构
