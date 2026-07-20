@@ -12,6 +12,9 @@
 - **自动识别查询类型**：根据输入格式自动判定为域名、IPv4、IPv6 或 MAC 地址，无需手动切换
 - **域名查询**：RDAP（HTTPS + JSON）优先 → WHOIS（TCP 43）回退 → ICANN 查询页降级
 - **IP 查询**：IPv4 / IPv6 均走 ARIN RDAP，自动重定向到对应 RIR
+- **IP 归属地查询**：IPv4 / IPv6 查询时自动附加归属地信息（国家/洲/省/市/经纬度/时区/ISP/AS）
+  - 双数据源容错：优先 `https://tool.xuanlove.host/ip/`，失败回退到 `ip-api.com`
+  - 按 IP 缓存 7 天，避免重复请求
 - **MAC 地址查询**：基于本地 IEEE OUI 数据库（53000+ 条记录），查询厂商名称、地址、注册类型、OUI 前缀
   - 支持 `aa:bb:cc:dd:ee:ff`、`aa-bb-cc-dd-ee-ff`、`aabb.ccdd.eeff`、`aabbccddeeff` 等多种格式
 - **统一服务器发现**：从 [IANA 根数据库](https://www.iana.org/domains/root/db) 动态抓取每个 TLD 的 RDAP 与 WHOIS 服务器，本地缓存 7 天
@@ -54,7 +57,8 @@
 ```
 .
 ├── index.php           # 统一入口（前端页面 + API 路由，HTML/CSS/JS 全部内嵌）
-├── whois.php           # 后端查询库（被 index.php include，也可独立访问）
+├── whois.php           # 后端查询库（被 index.php / ip.php include，也可独立访问）
+├── ip.php              # IP 归属地查询 API 独立入口（/ip/ 路径）
 ├── mac.csv             # MAC 地址厂商数据库（IEEE OUI 分配表，53000+ 条）
 ├── manifest.json       # PWA 配置
 ├── service-worker.js   # PWA 离线缓存策略
@@ -163,6 +167,76 @@ curl "https://tool.xuanlove.host/phpwhois/?api=2001:4860:4860::8888"
 
 同一 IP 60 秒内最多查询 30 次，超出返回 HTTP 429（含 `Retry-After` 头，纯文本响应）。
 
+## IP 归属地查询 API（/ip/）
+
+独立的 IP 归属地查询接口，数据源 ip-api.com（中文语言，支持 IPv4/IPv6）。
+
+### 请求
+
+```
+GET  https://tool.xuanlove.host/ip/                  # 查询调用者公网 IP
+GET  https://tool.xuanlove.host/ip/?ip=8.8.8.8       # 查询指定 IP
+POST https://tool.xuanlove.host/ip/                  # JSON body 查询指定 IP
+```
+
+### 调用示例
+
+```bash
+# 1. 查询本机公网 IP 归属地
+curl https://tool.xuanlove.host/ip/
+wget -qO- https://tool.xuanlove.host/ip/
+
+# 2. 查询指定 IP（GET 参数）
+curl "https://tool.xuanlove.host/ip/?ip=8.8.8.8"
+
+# 3. 查询指定 IP（POST JSON body）
+curl -X POST https://tool.xuanlove.host/ip/ \
+     -H "Content-Type: application/json" \
+     -d '{"ip": "54.255.104.99"}'
+```
+
+### 响应格式
+
+统一 JSON 响应，CORS 全开（`Access-Control-Allow-Origin: *`）。
+
+**成功响应**（HTTP 200）：
+
+```json
+{
+    "status": "success",
+    "query": "8.8.8.8",
+    "geolocation": {
+        "country": "美国",
+        "country_code": "US",
+        "region": "VA",
+        "region_name": "弗吉尼亚州",
+        "city": "Ashburn",
+        "zip": "20149",
+        "lat": 39.03,
+        "lon": -77.5,
+        "timezone": "America/New_York",
+        "isp": "Google LLC",
+        "org": "Google Public DNS",
+        "as": "AS15169 Google LLC",
+        "asname": "GOOGLE",
+        "continent": "北美洲"
+    }
+}
+```
+
+**失败响应**：
+
+| 场景 | HTTP 状态码 | 响应体 |
+| --- | --- | --- |
+| 无效 IP | 400 | `{"status":"error","message":"Invalid IP address","query":"..."}` |
+| 查询失败 | 502 | `{"status":"error","message":"Geolocation query failed","query":"..."}` |
+
+### 与主查询的关系
+
+- 主查询入口 `?api=<ip>` / `?domain=<ip>` 在查询 IPv4/IPv6 时会**自动附加** `geolocation` 字段
+- 双数据源策略：优先调用 `https://tool.xuanlove.host/ip/`，失败回退到 `ip-api.com`
+- `ip.php` 作为 `/ip/` 路径入口被主源调用，内部直接调用 ip-api.com，**避免递归**
+
 ## 安装
 
 1. 克隆仓库（含 `mac.csv` 数据库）：
@@ -207,6 +281,15 @@ curl "https://tool.xuanlove.host/phpwhois/?api=2001:4860:4860::8888"
 ## 伪静态规则（Nginx）
 
 ```
+# IP 归属地查询 API（/ip/ → ip.php）
+location = /ip/ {
+    try_files $uri /ip.php;
+}
+location = /ip {
+    try_files $uri /ip.php;
+}
+
+# 主应用（WHOIS/RDAP/MAC 查询 + 前端页面）
 location / {
     try_files $uri $uri/ /index.php;
 }

@@ -1782,6 +1782,7 @@ header('Content-Type: text/html; charset=utf-8');
                     const flag = countryCodeToFlag(geolocation.country_code);
                     const geo = {};
                     if (geolocation.country) geo.geoCountry = (flag ? flag + ' ' : '') + escapeHtml(geolocation.country) + (geolocation.country_code ? ' (' + escapeHtml(geolocation.country_code) + ')' : '');
+                    if (geolocation.continent) geo.geoContinent = escapeHtml(geolocation.continent);
                     if (geolocation.region_name || geolocation.region) {
                         const parts = [];
                         if (geolocation.region_name) parts.push(escapeHtml(geolocation.region_name));
@@ -1799,7 +1800,7 @@ header('Content-Type: text/html; charset=utf-8');
                     if (geolocation.as) geo.geoAs = escapeHtml(geolocation.as);
                     if (geolocation.asname) geo.geoAsname = escapeHtml(geolocation.asname);
 
-                    const geoFieldOrder = ['geoCountry', 'geoRegion', 'geoCity', 'geoZip', 'geoCoordinates',
+                    const geoFieldOrder = ['geoCountry', 'geoContinent', 'geoRegion', 'geoCity', 'geoZip', 'geoCoordinates',
                         'geoTimezone', 'geoIsp', 'geoOrg', 'geoAs', 'geoAsname'];
                     const geoInfo = {};
                     geoFieldOrder.forEach(function (key) { if (geo[key]) geoInfo[key] = geo[key]; });
@@ -2430,6 +2431,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'ipGeolocation': 'IP 归属地',
                                 'geoSourceLabel': '数据来源',
                                 'geoCountry': '国家/地区',
+                                'geoContinent': '洲',
                                 'geoRegion': '区域',
                                 'geoCity': '城市',
                                 'geoZip': '邮编',
@@ -2541,6 +2543,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'ipGeolocation': 'IP 歸屬地',
                                 'geoSourceLabel': '資料來源',
                                 'geoCountry': '國家/地區',
+                                'geoContinent': '洲',
                                 'geoRegion': '區域',
                                 'geoCity': '城市',
                                 'geoZip': '郵遞區號',
@@ -2652,6 +2655,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'ipGeolocation': 'IP Geolocation',
                                 'geoSourceLabel': 'Data Source',
                                 'geoCountry': 'Country',
+                                'geoContinent': 'Continent',
                                 'geoRegion': 'Region',
                                 'geoCity': 'City',
                                 'geoZip': 'Postal Code',
@@ -2763,6 +2767,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'ipGeolocation': 'Геолокация IP',
                                 'geoSourceLabel': 'Источник данных',
                                 'geoCountry': 'Страна',
+                                'geoContinent': 'Континент',
                                 'geoRegion': 'Регион',
                                 'geoCity': 'Город',
                                 'geoZip': 'Почтовый индекс',
@@ -2874,6 +2879,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 'ipGeolocation': 'Geolocalización IP',
                                 'geoSourceLabel': 'Fuente de datos',
                                 'geoCountry': 'País',
+                                'geoContinent': 'Continente',
                                 'geoRegion': 'Región',
                                 'geoCity': 'Ciudad',
                                 'geoZip': 'Código postal',

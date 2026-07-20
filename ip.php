@@ -82,8 +82,11 @@ if (!filter_var($ip, FILTER_VALIDATE_IP)) {
     ], 400);
 }
 
-// === 查询归属地（复用 whois.php 的 queryIpGeolocation，带文件缓存）===
-$geo = queryIpGeolocation($ip);
+// === 查询归属地 ===
+// 注意：ip.php 作为 /ip/ 入口被 queryIpGeolocation() 的主源调用，
+// 因此这里必须直接调用 fetchGeoFromFallback()（ip-api.com），
+// 禁止调用 queryIpGeolocation()，否则会形成递归死循环。
+$geo = fetchGeoFromFallback($ip);
 if ($geo === null) {
     ipApiRespond('error', [
         'message' => 'Geolocation query failed',

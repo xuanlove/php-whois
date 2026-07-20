@@ -31,9 +31,12 @@ define('API_RATE_LIMIT_MAX', 30);
 define('MAC_DB_FILE', __DIR__ . '/mac.csv');
 define('MAC_INDEX_CACHE', __DIR__ . '/mac-index.cache');
 
-// IP 归属地查询（ip-api.com 免费版，HTTP，每分钟 45 次）
-// 返回中文国家/省/市/经纬度/ISP/AS 等信息
-define('IP_API_URL', 'http://ip-api.com/json/');
+// IP 归属地查询
+// 优先调用自建服务 https://tool.xuanlove.host/ip/（反向代理到本项目 ip.php），
+// 失败时回退到 ip-api.com 免费版（HTTP，每分钟 45 次）
+// 两个数据源均返回中文国家/省/市/经纬度/ISP/AS 等信息
+define('IP_API_PRIMARY_URL', 'https://tool.xuanlove.host/ip/');
+define('IP_API_FALLBACK_URL', 'http://ip-api.com/json/');
 define('IP_GEO_CACHE_FILE', __DIR__ . '/ip-geo-cache.json');
 define('IP_GEO_CACHE_TTL', 604800); // 7 天（归属地变化极少）
 
@@ -532,9 +535,12 @@ function queryIpRdap($ip) {
     return $result;
 }
 
-// 查询 IP 归属地（ip-api.com 免费版，返回中文地理信息）
+// 查询 IP 归属地（双数据源：自建服务优先，ip-api.com 回退）
+// 优先级：
+//   ① https://tool.xuanlove.host/ip/?ip=<ip>  （自建服务，返回 {code:0,message:'success',data:{...}}）
+//   ② http://ip-api.com/json/<ip>             （ip-api.com 免费版，回退）
 // 返回结构：
-//   成功 → ['country','country_code','region','region_name','city','zip','lat','lon','timezone','isp','org','as','asname']
+//   成功 → ['country','country_code','region','region_name','city','zip','lat','lon','timezone','isp','org','as','asname','continent']
 //   失败 → null（不影响主流程）
 // 带文件缓存（按 IP 缓存 7 天）
 function queryIpGeolocation($ip) {
@@ -550,17 +556,78 @@ function queryIpGeolocation($ip) {
         return $cache[$cacheKey]['data'];
     }
 
-    // 调用 ip-api.com（中文语言，请求全部所需字段）
+    // ① 优先调用自建服务
+    $geo = fetchGeoFromPrimary($ip);
+    // ② 自建服务失败 → 回退到 ip-api.com
+    if ($geo === null) {
+        $geo = fetchGeoFromFallback($ip);
+    }
+
+    // 两个数据源均失败
+    if ($geo === null) return null;
+
+    // 写入缓存（按 IP 键，附加 cached_at 时间戳）
+    $cache[$cacheKey] = ['cached_at' => time(), 'data' => $geo];
+    // 顺带清理过期项，避免缓存文件无限增长
+    foreach ($cache as $key => $val) {
+        if (!isset($val['cached_at']) || (time() - $val['cached_at']) >= IP_GEO_CACHE_TTL * 4) {
+            unset($cache[$key]);
+        }
+    }
+    @file_put_contents(IP_GEO_CACHE_FILE, json_encode($cache, JSON_UNESCAPED_UNICODE), LOCK_EX);
+    return $geo;
+}
+
+// 数据源 ①：自建服务 https://tool.xuanlove.host/ip/?ip=<ip>
+// 响应格式：{"code":0,"message":"success","data":{ip,country,country_code,province,city,continent,latitude,longitude,timezone,asn,asn_organization,asn_domain,raw}}
+// 注意：ip.php 入口禁止调用此函数（会触发递归），应直接调用 fetchGeoFromFallback()
+function fetchGeoFromPrimary($ip) {
+    $url = IP_API_PRIMARY_URL . '?ip=' . urlencode($ip);
+    $raw = httpGet($url);
+    if ($raw === null) return null;
+    $data = json_decode($raw, true);
+    // 自建服务成功判定：code=0 且 message=success 且含 data 对象
+    if (!is_array($data) || !isset($data['code']) || $data['code'] !== 0
+        || !isset($data['data']) || !is_array($data['data'])) {
+        return null;
+    }
+    $d = $data['data'];
+    // ASN 数字 → "AS15169" 字符串格式（与 ip-api.com 统一）
+    $asnStr = '';
+    if (isset($d['asn'])) {
+        $asnStr = 'AS' . $d['asn'];
+    }
+    return [
+        'country'       => isset($d['country']) ? $d['country'] : '',
+        'country_code'  => isset($d['country_code']) ? $d['country_code'] : '',
+        'region'        => isset($d['province']) ? $d['province'] : '',
+        'region_name'   => isset($d['province']) ? $d['province'] : '',
+        'city'          => isset($d['city']) ? $d['city'] : '',
+        'zip'           => '',
+        'lat'           => isset($d['latitude']) ? $d['latitude'] : null,
+        'lon'           => isset($d['longitude']) ? $d['longitude'] : null,
+        'timezone'      => isset($d['timezone']) ? $d['timezone'] : '',
+        'isp'           => isset($d['asn_organization']) ? $d['asn_organization'] : '',
+        'org'           => isset($d['asn_organization']) ? $d['asn_organization'] : '',
+        'as'            => $asnStr,
+        'asname'        => isset($d['asn_organization']) ? $d['asn_organization'] : '',
+        'continent'     => isset($d['continent']) ? $d['continent'] : '',
+    ];
+}
+
+// 数据源 ②：ip-api.com 免费版（回退）
+// 响应格式：{"status":"success","country":...,"countryCode":...,"region":...,"regionName":...,...}
+// ip.php 入口直接调用此函数，避免递归
+function fetchGeoFromFallback($ip) {
     $fields = 'status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query';
-    $url = IP_API_URL . urlencode($ip) . '?lang=zh-CN&fields=' . $fields;
+    $url = IP_API_FALLBACK_URL . urlencode($ip) . '?lang=zh-CN&fields=' . $fields;
     $raw = httpGet($url);
     if ($raw === null) return null;
     $data = json_decode($raw, true);
     if (!is_array($data) || !isset($data['status']) || $data['status'] !== 'success') {
         return null;
     }
-
-    $geo = [
+    return [
         'country'       => isset($data['country']) ? $data['country'] : '',
         'country_code'  => isset($data['countryCode']) ? $data['countryCode'] : '',
         'region'        => isset($data['region']) ? $data['region'] : '',
@@ -574,18 +641,8 @@ function queryIpGeolocation($ip) {
         'org'           => isset($data['org']) ? $data['org'] : '',
         'as'            => isset($data['as']) ? $data['as'] : '',
         'asname'        => isset($data['asname']) ? $data['asname'] : '',
+        'continent'     => '',
     ];
-
-    // 写入缓存（按 IP 键，附加 cached_at 时间戳）
-    $cache[$cacheKey] = ['cached_at' => time(), 'data' => $geo];
-    // 顺带清理过期项，避免缓存文件无限增长
-    foreach ($cache as $key => $val) {
-        if (!isset($val['cached_at']) || (time() - $val['cached_at']) >= IP_GEO_CACHE_TTL * 4) {
-            unset($cache[$key]);
-        }
-    }
-    @file_put_contents(IP_GEO_CACHE_FILE, json_encode($cache, JSON_UNESCAPED_UNICODE), LOCK_EX);
-    return $geo;
 }
 
 // HTTP GET（返回原始字符串）
