@@ -31,6 +31,12 @@ define('API_RATE_LIMIT_MAX', 30);
 define('MAC_DB_FILE', __DIR__ . '/mac.csv');
 define('MAC_INDEX_CACHE', __DIR__ . '/mac-index.cache');
 
+// IP 归属地查询（ip-api.com 免费版，HTTP，每分钟 45 次）
+// 返回中文国家/省/市/经纬度/ISP/AS 等信息
+define('IP_API_URL', 'http://ip-api.com/json/');
+define('IP_GEO_CACHE_FILE', __DIR__ . '/ip-geo-cache.json');
+define('IP_GEO_CACHE_TTL', 604800); // 7 天（归属地变化极少）
+
 // RDAP 服务器补充列表（IANA 根数据库未列出 RDAP Server，但实际提供 RDAP 服务的 ccTLD）
 // 注意：cn/jp/kr/ru 的 RDAP 服务器经实测均不可用（连接失败），这些 ccTLD 实际未部署 RDAP，
 // 已全部移除，改为直接走 WHOIS 查询。若将来某 ccTLD 部署了 RDAP，可在此补充。
@@ -504,6 +510,7 @@ function queryDomainRdap($domain, $baseUrl) {
 }
 
 // 查询 IP RDAP（ARIN 作为入口，自动重定向到对应 RIR）
+// 成功时附加 ip-api.com 归属地信息（geolocation 字段，失败不影响主流程）
 function queryIpRdap($ip) {
     $url = ARIN_RDAP . '/ip/' . $ip;
     $resp = httpGetJson($url);
@@ -516,7 +523,69 @@ function queryIpRdap($ip) {
     if ($resp['code'] !== 200) {
         return ['domain' => $ip, 'error' => 'RDAP server returned HTTP ' . $resp['code']];
     }
-    return ['domain' => $ip, 'rdap' => $resp['data'], 'rdap_server' => ARIN_RDAP, 'source' => 'rdap'];
+    $result = ['domain' => $ip, 'rdap' => $resp['data'], 'rdap_server' => ARIN_RDAP, 'source' => 'rdap'];
+    // 附加 IP 归属地查询（ip-api.com，失败不影响 RDAP 主结果）
+    $geo = queryIpGeolocation($ip);
+    if ($geo !== null) {
+        $result['geolocation'] = $geo;
+    }
+    return $result;
+}
+
+// 查询 IP 归属地（ip-api.com 免费版，返回中文地理信息）
+// 返回结构：
+//   成功 → ['country','country_code','region','region_name','city','zip','lat','lon','timezone','isp','org','as','asname']
+//   失败 → null（不影响主流程）
+// 带文件缓存（按 IP 缓存 7 天）
+function queryIpGeolocation($ip) {
+    // 命中缓存
+    $cache = [];
+    if (is_file(IP_GEO_CACHE_FILE)) {
+        $cached = @json_decode(@file_get_contents(IP_GEO_CACHE_FILE), true);
+        if (is_array($cached)) $cache = $cached;
+    }
+    $cacheKey = $ip;
+    if (isset($cache[$cacheKey]) && isset($cache[$cacheKey]['cached_at'])
+        && (time() - $cache[$cacheKey]['cached_at']) < IP_GEO_CACHE_TTL) {
+        return $cache[$cacheKey]['data'];
+    }
+
+    // 调用 ip-api.com（中文语言，请求全部所需字段）
+    $fields = 'status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query';
+    $url = IP_API_URL . urlencode($ip) . '?lang=zh-CN&fields=' . $fields;
+    $raw = httpGet($url);
+    if ($raw === null) return null;
+    $data = json_decode($raw, true);
+    if (!is_array($data) || !isset($data['status']) || $data['status'] !== 'success') {
+        return null;
+    }
+
+    $geo = [
+        'country'       => isset($data['country']) ? $data['country'] : '',
+        'country_code'  => isset($data['countryCode']) ? $data['countryCode'] : '',
+        'region'        => isset($data['region']) ? $data['region'] : '',
+        'region_name'   => isset($data['regionName']) ? $data['regionName'] : '',
+        'city'          => isset($data['city']) ? $data['city'] : '',
+        'zip'           => isset($data['zip']) ? $data['zip'] : '',
+        'lat'           => isset($data['lat']) ? $data['lat'] : null,
+        'lon'           => isset($data['lon']) ? $data['lon'] : null,
+        'timezone'      => isset($data['timezone']) ? $data['timezone'] : '',
+        'isp'           => isset($data['isp']) ? $data['isp'] : '',
+        'org'           => isset($data['org']) ? $data['org'] : '',
+        'as'            => isset($data['as']) ? $data['as'] : '',
+        'asname'        => isset($data['asname']) ? $data['asname'] : '',
+    ];
+
+    // 写入缓存（按 IP 键，附加 cached_at 时间戳）
+    $cache[$cacheKey] = ['cached_at' => time(), 'data' => $geo];
+    // 顺带清理过期项，避免缓存文件无限增长
+    foreach ($cache as $key => $val) {
+        if (!isset($val['cached_at']) || (time() - $val['cached_at']) >= IP_GEO_CACHE_TTL * 4) {
+            unset($cache[$key]);
+        }
+    }
+    @file_put_contents(IP_GEO_CACHE_FILE, json_encode($cache, JSON_UNESCAPED_UNICODE), LOCK_EX);
+    return $geo;
 }
 
 // HTTP GET（返回原始字符串）

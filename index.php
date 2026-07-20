@@ -488,6 +488,18 @@ header('Content-Type: text/html; charset=utf-8');
             border-color: rgba(16, 185, 129, 0.4);
         }
 
+        .source-geo {
+            background: rgba(139, 92, 246, 0.14);
+            color: #7c3aed;
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        html.dark .source-geo {
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
         .source-info-row {
             display: flex;
             align-items: center;
@@ -1203,7 +1215,8 @@ header('Content-Type: text/html; charset=utf-8');
                         const { importantInfoHtml, originalInfoHtml } = formatIpInfo(response.rdap, {
                             server: response.rdap_server || '',
                             source: response.source || 'rdap',
-                            ip: response.domain || ''
+                            ip: response.domain || '',
+                            geolocation: response.geolocation || null
                         });
                         importantInfo.innerHTML = importantInfoHtml;
                         originalInfo.innerHTML = originalInfoHtml;
@@ -1592,6 +1605,7 @@ header('Content-Type: text/html; charset=utf-8');
                 sourceInfo = sourceInfo || {};
                 const sourceServer = escapeHtml(sourceInfo.server || '');
                 const queriedIp = escapeHtml(sourceInfo.ip || '');
+                const geolocation = sourceInfo.geolocation || null;
                 const temp = {};
                 const rawDates = {};
 
@@ -1755,6 +1769,73 @@ header('Content-Type: text/html; charset=utf-8');
                         </div>
                     </div>
                 `;
+
+                // 追加 IP 归属地卡片（仅当 geolocation 存在时显示，数据源 ip-api.com）
+                if (geolocation && typeof geolocation === 'object') {
+                    // 国家代码转国旗 emoji（A-Z → 🇦-🇿）
+                    const countryCodeToFlag = function (code) {
+                        if (!code || code.length !== 2) return '';
+                        return code.toUpperCase().split('').map(function (c) {
+                            return String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65);
+                        }).join('');
+                    };
+                    const flag = countryCodeToFlag(geolocation.country_code);
+                    const geo = {};
+                    if (geolocation.country) geo.geoCountry = (flag ? flag + ' ' : '') + escapeHtml(geolocation.country) + (geolocation.country_code ? ' (' + escapeHtml(geolocation.country_code) + ')' : '');
+                    if (geolocation.region_name || geolocation.region) {
+                        const parts = [];
+                        if (geolocation.region_name) parts.push(escapeHtml(geolocation.region_name));
+                        if (geolocation.region && geolocation.region !== geolocation.region_name) parts.push(escapeHtml(geolocation.region));
+                        geo.geoRegion = parts.join(' / ');
+                    }
+                    if (geolocation.city) geo.geoCity = escapeHtml(geolocation.city);
+                    if (geolocation.zip) geo.geoZip = escapeHtml(geolocation.zip);
+                    if (geolocation.lat !== null && geolocation.lat !== undefined && geolocation.lon !== null && geolocation.lon !== undefined) {
+                        geo.geoCoordinates = escapeHtml(String(geolocation.lat)) + ', ' + escapeHtml(String(geolocation.lon));
+                    }
+                    if (geolocation.timezone) geo.geoTimezone = escapeHtml(geolocation.timezone);
+                    if (geolocation.isp) geo.geoIsp = escapeHtml(geolocation.isp);
+                    if (geolocation.org) geo.geoOrg = escapeHtml(geolocation.org);
+                    if (geolocation.as) geo.geoAs = escapeHtml(geolocation.as);
+                    if (geolocation.asname) geo.geoAsname = escapeHtml(geolocation.asname);
+
+                    const geoFieldOrder = ['geoCountry', 'geoRegion', 'geoCity', 'geoZip', 'geoCoordinates',
+                        'geoTimezone', 'geoIsp', 'geoOrg', 'geoAs', 'geoAsname'];
+                    const geoInfo = {};
+                    geoFieldOrder.forEach(function (key) { if (geo[key]) geoInfo[key] = geo[key]; });
+
+                    if (Object.keys(geoInfo).length) {
+                        importantInfoHtml += `
+                            <div class="glass-inner rounded-3xl p-4 sm:p-6 mb-4 fade-in">
+                                <div class="flex justify-between items-center mb-5">
+                                    <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                        <span class="w-1.5 h-6 rounded-full" style="background: linear-gradient(135deg, #8b5cf6, #6366f1);"></span>
+                                        <span data-i18n="ipGeolocation">IP 归属地</span>
+                                    </h3>
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="source-badge source-geo" title="ip-api.com">GEO</span>
+                                    </div>
+                                </div>
+                                <div class="source-info-row">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <span data-i18n="geoSourceLabel">数据来源</span>：
+                                    <span class="source-server" title="ip-api.com">ip-api.com</span>
+                                </div>
+                                <div class="space-y-1">
+                                    ${Object.entries(geoInfo).map(([key, value]) => `
+                                        <div class="field-row">
+                                            <span class="field-label" data-i18n="${key}">${getLabel(key)}</span>
+                                            <span class="field-value">${value}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
 
                 // 生成原始 RDAP JSON 信息 HTML
                 const rawJson = escapeHtml(JSON.stringify(rdap, null, 2));
@@ -2346,6 +2427,18 @@ header('Content-Type: text/html; charset=utf-8');
                                 'searchAgain': '再次查询',
                                 'whoisOverview': 'WHOIS 信息概览',
                                 'ipOverview': 'IP 信息概览',
+                                'ipGeolocation': 'IP 归属地',
+                                'geoSourceLabel': '数据来源',
+                                'geoCountry': '国家/地区',
+                                'geoRegion': '区域',
+                                'geoCity': '城市',
+                                'geoZip': '邮编',
+                                'geoCoordinates': '经纬度',
+                                'geoTimezone': '时区',
+                                'geoIsp': 'ISP',
+                                'geoOrg': '组织',
+                                'geoAs': 'AS 号',
+                                'geoAsname': 'AS 名称',
                                 'ipAddress': 'IP 地址',
                                 'networkName': '网络名称',
                                 'ipCountry': '国家/地区',
@@ -2443,8 +2536,20 @@ header('Content-Type: text/html; charset=utf-8');
                                 'apiRateLimit': '限流規則',
                                 'apiRateLimitDesc': '同一 IP 60 秒內最多查詢 30 次，超限返回 HTTP 429（含 Retry-After 標頭，純文字回應）。',
                                 'searchAgain': '再次查詢',
-                                'whoisOverview': 'WHOIS 信息概覽',
+                                'whoisOverview': 'WHOIS 資訊概覽',
                                 'ipOverview': 'IP 資訊概覽',
+                                'ipGeolocation': 'IP 歸屬地',
+                                'geoSourceLabel': '資料來源',
+                                'geoCountry': '國家/地區',
+                                'geoRegion': '區域',
+                                'geoCity': '城市',
+                                'geoZip': '郵遞區號',
+                                'geoCoordinates': '經緯度',
+                                'geoTimezone': '時區',
+                                'geoIsp': 'ISP',
+                                'geoOrg': '組織',
+                                'geoAs': 'AS 號',
+                                'geoAsname': 'AS 名稱',
                                 'ipAddress': 'IP 位址',
                                 'networkName': '網路名稱',
                                 'ipCountry': '國家/地區',
@@ -2544,6 +2649,18 @@ header('Content-Type: text/html; charset=utf-8');
                                 'searchAgain': 'Search Again',
                                 'whoisOverview': 'WHOIS Information Overview',
                                 'ipOverview': 'IP Information Overview',
+                                'ipGeolocation': 'IP Geolocation',
+                                'geoSourceLabel': 'Data Source',
+                                'geoCountry': 'Country',
+                                'geoRegion': 'Region',
+                                'geoCity': 'City',
+                                'geoZip': 'Postal Code',
+                                'geoCoordinates': 'Coordinates',
+                                'geoTimezone': 'Timezone',
+                                'geoIsp': 'ISP',
+                                'geoOrg': 'Organization',
+                                'geoAs': 'AS Number',
+                                'geoAsname': 'AS Name',
                                 'ipAddress': 'IP Address',
                                 'networkName': 'Network Name',
                                 'ipCountry': 'Country/Region',
@@ -2643,6 +2760,18 @@ header('Content-Type: text/html; charset=utf-8');
                                 'searchAgain': 'Искать снова',
                                 'whoisOverview': 'Обзор информации WHOIS',
                                 'ipOverview': 'Обзор IP-информации',
+                                'ipGeolocation': 'Геолокация IP',
+                                'geoSourceLabel': 'Источник данных',
+                                'geoCountry': 'Страна',
+                                'geoRegion': 'Регион',
+                                'geoCity': 'Город',
+                                'geoZip': 'Почтовый индекс',
+                                'geoCoordinates': 'Координаты',
+                                'geoTimezone': 'Часовой пояс',
+                                'geoIsp': 'ISP',
+                                'geoOrg': 'Организация',
+                                'geoAs': 'AS номер',
+                                'geoAsname': 'AS имя',
                                 'ipAddress': 'IP-адрес',
                                 'networkName': 'Имя сети',
                                 'ipCountry': 'Страна/регион',
@@ -2742,6 +2871,18 @@ header('Content-Type: text/html; charset=utf-8');
                                 'searchAgain': 'Buscar de nuevo',
                                 'whoisOverview': 'Resumen de información WHOIS',
                                 'ipOverview': 'Resumen de información IP',
+                                'ipGeolocation': 'Geolocalización IP',
+                                'geoSourceLabel': 'Fuente de datos',
+                                'geoCountry': 'País',
+                                'geoRegion': 'Región',
+                                'geoCity': 'Ciudad',
+                                'geoZip': 'Código postal',
+                                'geoCoordinates': 'Coordenadas',
+                                'geoTimezone': 'Zona horaria',
+                                'geoIsp': 'ISP',
+                                'geoOrg': 'Organización',
+                                'geoAs': 'Número AS',
+                                'geoAsname': 'Nombre AS',
                                 'ipAddress': 'Dirección IP',
                                 'networkName': 'Nombre de red',
                                 'ipCountry': 'País/Región',

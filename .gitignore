@@ -3,4 +3,5 @@ whois-cache.json
 servers-cache.json
 api-rate-limit.json
 mac-index.cache
+ip-geo-cache.json
 node_modules/
