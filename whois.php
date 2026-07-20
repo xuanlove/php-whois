@@ -26,6 +26,11 @@ define('API_RATE_LIMIT_FILE', __DIR__ . '/api-rate-limit.json');
 define('API_RATE_LIMIT_WINDOW', 60);
 define('API_RATE_LIMIT_MAX', 30);
 
+// MAC 地址厂商数据库（IEEE OUI 分配表）
+// 数据源：https://github.com/WH-2099/macdb
+define('MAC_DB_FILE', __DIR__ . '/mac.csv');
+define('MAC_INDEX_CACHE', __DIR__ . '/mac-index.cache');
+
 // RDAP 服务器补充列表（IANA 根数据库未列出 RDAP Server，但实际提供 RDAP 服务的 ccTLD）
 // 注意：cn/jp/kr/ru 的 RDAP 服务器经实测均不可用（连接失败），这些 ccTLD 实际未部署 RDAP，
 // 已全部移除，改为直接走 WHOIS 查询。若将来某 ccTLD 部署了 RDAP，可在此补充。
@@ -50,6 +55,11 @@ function handleWhoisRequest() {
             header('Retry-After: ' . API_RATE_LIMIT_WINDOW);
             header('Content-Type: text/plain; charset=utf-8');
             echo 'Rate limit exceeded';
+            exit;
+        }
+        // MAC 地址：直接输出 CSV 原始行
+        if (isMacAddress($_GET['api'])) {
+            outputRawMacRecord($_GET['api']);
             exit;
         }
         outputRawApiRecord($_GET['api']);
@@ -146,13 +156,18 @@ function buildErrorMessage($rdapUrl, $whoisServer, $whoisError) {
 }
 
 function getRdapRecord($input) {
+    // MAC 地址查询：必须在 normalizeDomain 之前拦截（MAC 含冒号会被截断）
+    if (isMacAddress($input)) {
+        return queryMacRecord($input);
+    }
+
     $domain = normalizeDomain($input);
     if ($domain === '') {
         http_response_code(400);
         return ['domain' => $input, 'error' => 'Invalid domain or IP'];
     }
 
-    // IP 地址查询：走 ARIN RDAP（会自动重定向到对应 RIR）
+    // IP 地址查询（IPv4/IPv6 均由 ARIN RDAP 处理，会自动重定向到对应 RIR）
     if (filter_var($domain, FILTER_VALIDATE_IP)) {
         return queryIpRdap($domain);
     }
@@ -197,6 +212,124 @@ function getRdapRecord($input) {
         'error' => $error,
         'fallback' => $fallback
     ];
+}
+
+// ===== MAC 地址查询 =====
+
+// 识别 MAC 地址：支持 aa:bb:cc:dd:ee:ff / aa-bb-cc-dd-ee-ff / aabb.ccdd.eeff / aabbccddeeff
+// 返回 true/false
+function isMacAddress($input) {
+    return normalizeMac($input) !== '';
+}
+
+// 规范化 MAC 地址为 12 位小写十六进制（去除所有分隔符）
+// 非法格式返回空字符串
+function normalizeMac($input) {
+    $input = trim($input);
+    $hex = preg_replace('/[^0-9a-fA-F]/', '', $input);
+    if (strlen($hex) !== 12) return '';
+    return strtolower($hex);
+}
+
+// 格式化 MAC 地址为常用显示形式 AA:BB:CC:DD:EE:FF
+function formatMacDisplay($mac) {
+    $mac = strtolower($mac);
+    return strtoupper(implode(':', str_split($mac, 2)));
+}
+
+// MAC 地址厂商查询入口
+// 返回结构：
+//   命中 → ['domain'=>显示MAC, 'source'=>'mac', 'mac'=>['mac','prefix','registry','organization','address']]
+//   未命中 → ['domain'=>显示MAC, 'error'=>'MAC Not Found']
+function queryMacRecord($input) {
+    $mac = normalizeMac($input);
+    if ($mac === '') {
+        return ['domain' => $input, 'error' => 'Invalid MAC address'];
+    }
+
+    $prefix = substr($mac, 0, 6); // OUI 前 3 字节
+    $record = lookupMacPrefix($prefix);
+
+    if ($record === null) {
+        return ['domain' => formatMacDisplay($mac), 'error' => 'MAC Not Found'];
+    }
+
+    return [
+        'domain' => formatMacDisplay($mac),
+        'source' => 'mac',
+        'mac' => [
+            'mac'           => formatMacDisplay($mac),
+            'prefix'        => strtoupper($prefix),
+            'registry'      => $record['registry'],
+            'organization'  => $record['org_name'],
+            'address'       => $record['org_address'],
+        ],
+    ];
+}
+
+// 加载 MAC 数据库索引（带文件缓存）
+// 返回 [prefix_lower => ['registry','org_name','org_address']]
+function getMacIndex() {
+    static $index = null;
+    if ($index !== null) return $index;
+
+    // 缓存命中：缓存文件存在且不早于 CSV 修改时间
+    if (is_file(MAC_INDEX_CACHE) && is_file(MAC_DB_FILE)
+        && filemtime(MAC_INDEX_CACHE) >= filemtime(MAC_DB_FILE)) {
+        $cached = @unserialize(@file_get_contents(MAC_INDEX_CACHE));
+        if (is_array($cached)) {
+            $index = $cached;
+            return $index;
+        }
+    }
+
+    // 重建索引
+    $index = [];
+    if (!is_file(MAC_DB_FILE)) return $index;
+    $handle = @fopen(MAC_DB_FILE, 'r');
+    if (!$handle) return $index;
+    fgetcsv($handle); // 跳过表头
+    while (($row = fgetcsv($handle)) !== false) {
+        if (count($row) < 4) continue;
+        $index[strtolower(trim($row[1]))] = [
+            'registry'   => $row[0],
+            'org_name'   => $row[2],
+            'org_address'=> $row[3],
+        ];
+    }
+    fclose($handle);
+
+    @file_put_contents(MAC_INDEX_CACHE, serialize($index), LOCK_EX);
+    return $index;
+}
+
+// 按 OUI 前缀（6 位十六进制）查询厂商信息
+function lookupMacPrefix($prefix) {
+    $index = getMacIndex();
+    $prefix = strtolower($prefix);
+    return isset($index[$prefix]) ? $index[$prefix] : null;
+}
+
+// 输出 MAC 的 API 原始数据：CSV 原始行（text/plain）
+function outputRawMacRecord($input) {
+    $mac = normalizeMac($input);
+    if ($mac === '') {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Invalid MAC address';
+        return;
+    }
+    $prefix = substr($mac, 0, 6);
+    $record = lookupMacPrefix($prefix);
+    if ($record === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'MAC Not Found';
+        return;
+    }
+    header('Content-Type: text/plain; charset=utf-8');
+    // 输出 CSV 原始行
+    echo $record['registry'] . ',' . strtoupper($prefix) . ',' . $record['org_name'] . ',' . $record['org_address'];
 }
 
 // 获取客户端真实 IP（兼容反向代理 X-Forwarded-For）

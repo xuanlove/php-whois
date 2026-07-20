@@ -476,6 +476,18 @@ header('Content-Type: text/html; charset=utf-8');
             border-color: rgba(148, 163, 184, 0.35);
         }
 
+        .source-mac {
+            background: rgba(5, 150, 105, 0.14);
+            color: var(--success);
+            border-color: rgba(5, 150, 105, 0.3);
+        }
+
+        html.dark .source-mac {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
         .source-info-row {
             display: flex;
             align-items: center;
@@ -1223,6 +1235,16 @@ header('Content-Type: text/html; charset=utf-8');
                     setTimeout(() => resultDiv.classList.remove('fade-in'), 400);
                     updateSearchHistory(domainInput.value.trim());
                     updateContent();
+                } else if (response.mac) {
+                    // MAC 地址厂商查询
+                    const { importantInfoHtml, originalInfoHtml } = formatMacInfo(response.mac);
+                    importantInfo.innerHTML = importantInfoHtml;
+                    originalInfo.innerHTML = originalInfoHtml;
+                    resultDiv.classList.remove('hidden');
+                    resultDiv.classList.add('fade-in');
+                    setTimeout(() => resultDiv.classList.remove('fade-in'), 400);
+                    updateSearchHistory(domainInput.value.trim());
+                    updateContent();
                 } else if (response.fallback) {
                     // RDAP 与 WHOIS 均失败，显示错误详情 + ICANN 查询链接
                     const fallbackUrl = escapeHtml(response.fallback);
@@ -1284,6 +1306,8 @@ header('Content-Type: text/html; charset=utf-8');
                 if (e.indexOf('DNS resolution') !== -1) return i18next.t('whoisDnsFailed');
                 if (e.indexOf('read timeout') !== -1) return i18next.t('whoisReadTimeout');
                 if (e.indexOf('empty response') !== -1) return i18next.t('whoisEmpty');
+                if (e.indexOf('MAC Not Found') !== -1) return i18next.t('macNotFound');
+                if (e.indexOf('Invalid MAC') !== -1) return i18next.t('invalidMac');
                 return escapeHtml(e);
             }
 
@@ -1745,6 +1769,91 @@ header('Content-Type: text/html; charset=utf-8');
                             </button>
                         </div>
                         <div class="json-block scroll-area" id="originalInfoContent">${rawJson}</div>
+                    </div>
+                `;
+
+                return { importantInfoHtml, originalInfoHtml };
+            }
+
+            // 格式化 MAC 地址厂商查询结果
+            function formatMacInfo(macInfo) {
+                if (!macInfo || typeof macInfo !== 'object') macInfo = {};
+                const temp = {};
+
+                // MAC 地址
+                if (macInfo.mac) temp.macAddress = escapeHtml(macInfo.mac);
+
+                // OUI 前缀
+                if (macInfo.prefix) temp.macPrefix = escapeHtml(macInfo.prefix);
+
+                // 注册类型（MA-L/MA-M/MA-S/IAB/CID）
+                if (macInfo.registry) temp.macRegistry = escapeHtml(macInfo.registry);
+
+                // 厂商名称
+                if (macInfo.organization) temp.macOrganization = escapeHtml(macInfo.organization);
+
+                // 厂商地址
+                if (macInfo.address) temp.macAddress2 = escapeHtml(macInfo.address);
+
+                // 按固定顺序构建显示字段
+                const fieldOrder = ['macAddress', 'macPrefix', 'macRegistry', 'macOrganization', 'macAddress2'];
+                const info = {};
+                fieldOrder.forEach(function (key) {
+                    if (temp[key]) info[key] = temp[key];
+                });
+
+                // 生成重要信息 HTML
+                let importantInfoHtml = `
+                    <div id="importantInfoCard" class="glass-inner rounded-3xl p-4 sm:p-6 mb-4 fade-in">
+                        <div class="flex justify-between items-center mb-5">
+                            <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
+                                <span data-i18n="macOverview">MAC 信息概览</span>
+                            </h3>
+                            <div class="flex items-center gap-2.5">
+                                <span class="source-badge source-mac">MAC</span>
+                                <button id="saveScreenshot" class="icon-btn p-2.5" title="截图">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="source-info-row">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span data-i18n="macDatabaseLabel">数据来源</span>：
+                            <span class="source-server" title="IEEE OUI">IEEE OUI</span>
+                        </div>
+                        <div class="space-y-1">
+                            ${Object.entries(info).map(([key, value]) => `
+                                <div class="field-row">
+                                    <span class="field-label" data-i18n="${key}">${getLabel(key)}</span>
+                                    <span class="field-value">${value}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+                // 原始信息：CSV 原始行
+                const rawLine = macInfo.registry + ',' + macInfo.prefix + ',' + macInfo.organization + ',' + (macInfo.address || '');
+                const rawEscaped = escapeHtml(rawLine);
+                let originalInfoHtml = `
+                    <div class="glass-inner rounded-3xl p-4 sm:p-6 fade-in">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-base sm:text-lg font-bold flex items-center gap-2.5" style="color: var(--text-primary);">
+                                <span class="w-1.5 h-6 rounded-full" style="background: var(--accent-gradient);"></span>
+                                <span data-i18n="originalMac">原始信息</span>
+                            </h3>
+                            <button id="copyOriginalInfo" class="icon-btn p-2.5" data-clipboard-target="#originalInfoContent" title="复制">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <pre id="originalInfoContent" class="text-sm leading-relaxed overflow-x-auto" style="color: var(--text-secondary); white-space: pre-wrap; word-break: break-all;">${rawEscaped}</pre>
                     </div>
                 `;
 
@@ -2252,6 +2361,16 @@ header('Content-Type: text/html; charset=utf-8');
                                 'screenshotFailed': '截图失败，请稍后重试',
                                 'footerCopyright': '软件信息归属',
                                 'footerSource': '开源仓库',
+                                'macOverview': 'MAC 信息概览',
+                                'macDatabaseLabel': '数据来源',
+                                'macAddress': 'MAC 地址',
+                                'macPrefix': 'OUI 前缀',
+                                'macRegistry': '注册类型',
+                                'macOrganization': '厂商名称',
+                                'macAddress2': '厂商地址',
+                                'originalMac': '原始信息',
+                                'macNotFound': '未找到该 MAC 前缀',
+                                'invalidMac': '无效的 MAC 地址',
                                 'domainName': '域名',
                                 'registrar': '注册商',
                                 'updatedDate': '更新日',
@@ -2341,6 +2460,16 @@ header('Content-Type: text/html; charset=utf-8');
                                 'screenshotFailed': '截圖失敗，請稍後重試',
                                 'footerCopyright': '軟體資訊歸屬',
                                 'footerSource': '開源倉庫',
+                                'macOverview': 'MAC 資訊概覽',
+                                'macDatabaseLabel': '資料來源',
+                                'macAddress': 'MAC 位址',
+                                'macPrefix': 'OUI 前綴',
+                                'macRegistry': '註冊類型',
+                                'macOrganization': '廠商名稱',
+                                'macAddress2': '廠商地址',
+                                'originalMac': '原始資訊',
+                                'macNotFound': '未找到該 MAC 前綴',
+                                'invalidMac': '無效的 MAC 位址',
                                 'domainName': '域名',
                                 'registrar': '註冊商',
                                 'updatedDate': '更新日',
@@ -2430,6 +2559,16 @@ header('Content-Type: text/html; charset=utf-8');
                                 'screenshotFailed': 'Screenshot failed, please try again later',
                                 'footerCopyright': 'Software attribution',
                                 'footerSource': 'Open source repository',
+                                'macOverview': 'MAC Information Overview',
+                                'macDatabaseLabel': 'Data source',
+                                'macAddress': 'MAC Address',
+                                'macPrefix': 'OUI Prefix',
+                                'macRegistry': 'Registry Type',
+                                'macOrganization': 'Organization',
+                                'macAddress2': 'Address',
+                                'originalMac': 'Original Information',
+                                'macNotFound': 'MAC prefix not found in database',
+                                'invalidMac': 'Invalid MAC address',
                                 'domainName': 'Domain Name',
                                 'registrar': 'Registrar',
                                 'updatedDate': 'Updated Date',
@@ -2519,6 +2658,16 @@ header('Content-Type: text/html; charset=utf-8');
                                 'screenshotFailed': 'Не удалось сделать скриншот, попробуйте позже',
                                 'footerCopyright': 'Принадлежность ПО',
                                 'footerSource': 'Открытый репозиторий',
+                                'macOverview': 'Обзор информации MAC',
+                                'macDatabaseLabel': 'Источник данных',
+                                'macAddress': 'MAC-адрес',
+                                'macPrefix': 'Префикс OUI',
+                                'macRegistry': 'Тип реестра',
+                                'macOrganization': 'Производитель',
+                                'macAddress2': 'Адрес',
+                                'originalMac': 'Исходная информация',
+                                'macNotFound': 'Префикс MAC не найден в базе',
+                                'invalidMac': 'Недопустимый MAC-адрес',
                                 'domainName': 'Доменное имя',
                                 'registrar': 'Регистратор',
                                 'updatedDate': 'Дата обновления',
@@ -2608,6 +2757,16 @@ header('Content-Type: text/html; charset=utf-8');
                                 'screenshotFailed': 'Error al tomar captura de pantalla, intente nuevamente más tarde',
                                 'footerCopyright': 'Atribución del software',
                                 'footerSource': 'Repositorio de código abierto',
+                                'macOverview': 'Resumen de información MAC',
+                                'macDatabaseLabel': 'Fuente de datos',
+                                'macAddress': 'Dirección MAC',
+                                'macPrefix': 'Prefijo OUI',
+                                'macRegistry': 'Tipo de registro',
+                                'macOrganization': 'Fabricante',
+                                'macAddress2': 'Dirección',
+                                'originalMac': 'Información original',
+                                'macNotFound': 'Prefijo MAC no encontrado en la base de datos',
+                                'invalidMac': 'Dirección MAC no válida',
                                 'domainName': 'Nombre de dominio',
                                 'registrar': 'Registrador',
                                 'updatedDate': 'Fecha de actualización',

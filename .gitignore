@@ -2,4 +2,5 @@ rdap-cache.json
 whois-cache.json
 servers-cache.json
 api-rate-limit.json
+mac-index.cache
 node_modules/
