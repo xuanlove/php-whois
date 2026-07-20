@@ -1166,6 +1166,8 @@ header('Content-Type: text/html; charset=utf-8');
             }
 
             function performWhoisLookup(domain) {
+                // 每次查询前自动滚动回页面顶部，让用户立即看到查询输入框与 loading 状态
+                window.scrollTo({ top: 0, behavior: 'smooth' });
                 updateButtonState(true);
                 updateUrl(domain);
                 domainInput.value = domain;
