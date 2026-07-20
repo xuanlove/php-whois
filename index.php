@@ -1806,6 +1806,8 @@ header('Content-Type: text/html; charset=utf-8');
                     geoFieldOrder.forEach(function (key) { if (geo[key]) geoInfo[key] = geo[key]; });
 
                     if (Object.keys(geoInfo).length) {
+                        // 真实数据源（由后端返回，可能是 tool.xuanlove.host/ip/ 或 ip-api.com）
+                        const geoSource = escapeHtml(geolocation.source || 'unknown');
                         importantInfoHtml += `
                             <div class="glass-inner rounded-3xl p-4 sm:p-6 mb-4 fade-in">
                                 <div class="flex justify-between items-center mb-5">
@@ -1814,7 +1816,7 @@ header('Content-Type: text/html; charset=utf-8');
                                         <span data-i18n="ipGeolocation">IP 归属地</span>
                                     </h3>
                                     <div class="flex items-center gap-2.5">
-                                        <span class="source-badge source-geo" title="ip-api.com">GEO</span>
+                                        <span class="source-badge source-geo" title="${geoSource}">GEO</span>
                                     </div>
                                 </div>
                                 <div class="source-info-row">
@@ -1823,7 +1825,7 @@ header('Content-Type: text/html; charset=utf-8');
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
                                     <span data-i18n="geoSourceLabel">数据来源</span>：
-                                    <span class="source-server" title="ip-api.com">ip-api.com</span>
+                                    <span class="source-server" title="${geoSource}">${geoSource}</span>
                                 </div>
                                 <div class="space-y-1">
                                     ${Object.entries(geoInfo).map(([key, value]) => `

@@ -540,7 +540,7 @@ function queryIpRdap($ip) {
 //   ① https://tool.xuanlove.host/ip/?ip=<ip>  （自建服务，返回 {code:0,message:'success',data:{...}}）
 //   ② http://ip-api.com/json/<ip>             （ip-api.com 免费版，回退）
 // 返回结构：
-//   成功 → ['country','country_code','region','region_name','city','zip','lat','lon','timezone','isp','org','as','asname','continent']
+//   成功 → ['source'=>数据源URL, 'country','country_code','region','region_name','city','zip','lat','lon','timezone','isp','org','as','asname','continent']
 //   失败 → null（不影响主流程）
 // 带文件缓存（按 IP 缓存 7 天）
 function queryIpGeolocation($ip) {
@@ -581,6 +581,7 @@ function queryIpGeolocation($ip) {
 // 数据源 ①：自建服务 https://tool.xuanlove.host/ip/?ip=<ip>
 // 响应格式：{"code":0,"message":"success","data":{ip,country,country_code,province,city,continent,latitude,longitude,timezone,asn,asn_organization,asn_domain,raw}}
 // 注意：ip.php 入口禁止调用此函数（会触发递归），应直接调用 fetchGeoFromFallback()
+// 返回结构中 source 字段标识真实数据源（用于前端显示，不固定）
 function fetchGeoFromPrimary($ip) {
     $url = IP_API_PRIMARY_URL . '?ip=' . urlencode($ip);
     $raw = httpGet($url);
@@ -598,6 +599,7 @@ function fetchGeoFromPrimary($ip) {
         $asnStr = 'AS' . $d['asn'];
     }
     return [
+        'source'        => 'tool.xuanlove.host/ip/',  // 真实数据源标识
         'country'       => isset($d['country']) ? $d['country'] : '',
         'country_code'  => isset($d['country_code']) ? $d['country_code'] : '',
         'region'        => isset($d['province']) ? $d['province'] : '',
@@ -618,6 +620,7 @@ function fetchGeoFromPrimary($ip) {
 // 数据源 ②：ip-api.com 免费版（回退）
 // 响应格式：{"status":"success","country":...,"countryCode":...,"region":...,"regionName":...,...}
 // ip.php 入口直接调用此函数，避免递归
+// 返回结构中 source 字段标识真实数据源（用于前端显示，不固定）
 function fetchGeoFromFallback($ip) {
     $fields = 'status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query';
     $url = IP_API_FALLBACK_URL . urlencode($ip) . '?lang=zh-CN&fields=' . $fields;
@@ -628,6 +631,7 @@ function fetchGeoFromFallback($ip) {
         return null;
     }
     return [
+        'source'        => 'ip-api.com',  // 真实数据源标识
         'country'       => isset($data['country']) ? $data['country'] : '',
         'country_code'  => isset($data['countryCode']) ? $data['countryCode'] : '',
         'region'        => isset($data['region']) ? $data['region'] : '',
