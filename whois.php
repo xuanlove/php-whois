@@ -216,18 +216,29 @@ function getRdapRecord($input) {
 
 // ===== MAC 地址查询 =====
 
-// 识别 MAC 地址：支持 aa:bb:cc:dd:ee:ff / aa-bb-cc-dd-ee-ff / aabb.ccdd.eeff / aabbccddeeff
+// 识别 MAC 地址：严格匹配以下四种格式，避免域名（如 abcdef123456.io）被误识别
+//   aa:bb:cc:dd:ee:ff   冒号分隔
+//   aa-bb-cc-dd-ee-ff   连字符分隔
+//   aabb.ccdd.eeff      Cisco 点分格式
+//   aabbccddeeff        无分隔符
 // 返回 true/false
 function isMacAddress($input) {
-    return normalizeMac($input) !== '';
+    $input = trim($input);
+    if ($input === '') return false;
+    // 冒号或连字符分隔（6 组 2 位十六进制）
+    if (preg_match('/^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$/', $input)) return true;
+    // Cisco 点分格式（3 组 4 位十六进制）
+    if (preg_match('/^([0-9a-fA-F]{4}[.]){2}[0-9a-fA-F]{4}$/', $input)) return true;
+    // 无分隔符（12 位十六进制）
+    if (preg_match('/^[0-9a-fA-F]{12}$/', $input)) return true;
+    return false;
 }
 
-// 规范化 MAC 地址为 12 位小写十六进制（去除所有分隔符）
+// 规范化 MAC 地址为 12 位小写十六进制（仅接受 isMacAddress 认可的格式）
 // 非法格式返回空字符串
 function normalizeMac($input) {
-    $input = trim($input);
+    if (!isMacAddress($input)) return '';
     $hex = preg_replace('/[^0-9a-fA-F]/', '', $input);
-    if (strlen($hex) !== 12) return '';
     return strtolower($hex);
 }
 
