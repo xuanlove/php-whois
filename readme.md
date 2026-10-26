@@ -20,6 +20,7 @@
   - 支持 `aa:bb:cc:dd:ee:ff`、`aa-bb-cc-dd-ee-ff`、`aabb.ccdd.eeff`、`aabbccddeeff` 等多种格式
   - 严格正则匹配，避免 `abcdef123456.io` 等域名被误识别为 MAC
 - **统一服务器发现**：从 [IANA 根数据库](https://www.iana.org/domains/root/db) 动态抓取每个 TLD 的 RDAP 与 WHOIS 服务器，本地缓存 7 天
+  - 解析兼容 IANA 页面新旧字段（新版「RDAP Base URLs」/ 旧版「RDAP Server」），缓存带格式版本号，格式变更后旧缓存自动失效
 - **多级后缀优先匹配**：`com.cn` 优先于 `cn`，RDAP 与 WHOIS 独立查找各自最长匹配
 - **WHOIS 二次查询**：注册局响应中含「Registrar WHOIS Server」时自动追加注册商 WHOIS 查询，获取更详细的注册人信息
 - **IDN 域名支持**：Punycode 转换，支持中文等国际化域名
