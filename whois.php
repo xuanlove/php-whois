@@ -13,11 +13,13 @@ define('ICANN_LOOKUP', 'https://lookup.icann.org/zh/lookup');
 define('ARIN_RDAP', 'https://rdap.arin.net/registry');
 define('USER_AGENT', 'php-whois/3.0 (RDAP+WHOIS client)');
 
-// IANA 根数据库：每个 TLD 详情页含 RDAP Server 和 WHOIS Server 字段
+// IANA 根数据库：每个 TLD 详情页含 RDAP Base URLs（旧版页面叫 RDAP Server）和 WHOIS Server 字段
 define('IANA_ROOT_DB_URL', 'https://www.iana.org/domains/root/db/');
 // 统一服务器缓存：{ tld: { rdap: url|null, whois: server|null } }
 define('SERVERS_CACHE_FILE', __DIR__ . '/servers-cache.json');
 define('SERVERS_CACHE_TTL', 604800); // 7 天（服务器变更极少）
+// 缓存格式版本：版本不匹配时旧缓存整体作废（IANA 字段改名曾导致旧缓存被 rdap:null 污染）
+define('SERVERS_CACHE_VERSION', 2);
 define('WHOIS_PORT', 43);
 define('WHOIS_TIMEOUT', 12);
 
@@ -453,10 +455,11 @@ function discoverServers($tld) {
     }
 
     // strip HTML 标签后正则提取（兼容各种标签格式）
+    // RDAP 字段：新版页面叫「RDAP Base URLs」，旧版叫「RDAP Server」，均兼容
     $text = strip_tags($html);
     $rdap = null;
     $whois = null;
-    if (preg_match('/RDAP\s*Server\s*:?\s*(https?:\/\/[^\s<]+)/i', $text, $m)) {
+    if (preg_match('/RDAP\s*(?:(?:Base\s*)?URLs?|Server)\s*:?\s*(https?:\/\/[^\s<]+)/i', $text, $m)) {
         $rdap = rtrim(trim($m[1]), '/');
     }
     if (preg_match('/WHOIS\s*Server\s*:?\s*([a-z0-9.\-]+\.[a-z]{2,})/i', $text, $m2)) {
@@ -470,16 +473,18 @@ function discoverServers($tld) {
     return $cache[$tld];
 }
 
-// 读取服务器缓存
+// 读取服务器缓存（格式版本不匹配则视为空缓存，旧数据整体作废）
 function getServersCache() {
     if (!is_file(SERVERS_CACHE_FILE)) return [];
     $cached = json_decode(file_get_contents(SERVERS_CACHE_FILE), true);
-    return is_array($cached) ? $cached : [];
+    if (!is_array($cached) || ($cached['_v'] ?? 0) !== SERVERS_CACHE_VERSION) return [];
+    return $cached;
 }
 
 // 写入服务器缓存
 function saveServersCache($cache) {
-    @file_put_contents(SERVERS_CACHE_FILE, json_encode($cache, JSON_UNESCAPED_SLASHES));
+    $cache['_v'] = SERVERS_CACHE_VERSION;
+    @file_put_contents(SERVERS_CACHE_FILE, json_encode($cache, JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
 // 规范化域名
@@ -666,7 +671,8 @@ function httpGet($url) {
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err = curl_error($ch);
     curl_close($ch);
-    if ($raw === false) return null;
+    // 非 200 一律视为失败：避免 404/403/质询页等错误 HTML 进入解析与缓存流程
+    if ($raw === false || $code !== 200) return null;
     return $raw;
 }
 
